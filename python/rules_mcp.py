@@ -4,21 +4,19 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-# Pin the kit rule book. Do not pick AGENTS.md / PLAN.md / README.md
-# just because they are also markdown in the participant folder.
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent if HERE.name == "python" else HERE
+# Pin the kit rule book. Markdown lives under md/.
 PREFERRED = (
-    "payer_rules.md",
-    "dispatch_rules.md",
-    "rights_rules.md",
+    "md/policy-excerpt.md",
     "policy-excerpt.md",
 )
-SKIP = {"README.md", "AGENTS.md", "PLAN.md"}
+SKIP = {"README.md", "AGENTS.md", "PLAN.md", "judging.md"}
 RULE_FILE = next((ROOT / name for name in PREFERRED if (ROOT / name).exists()), None)
 if RULE_FILE is None:
     RULE_FILE = next(
-        (p for p in ROOT.iterdir() if p.suffix == ".md" and p.name not in SKIP),
-        ROOT / "payer_rules.md",
+        (p for p in (ROOT / "md").glob("*.md") if p.name not in SKIP),
+        ROOT / "md" / "policy-excerpt.md",
     )
 
 

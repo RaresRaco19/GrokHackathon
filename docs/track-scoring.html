@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hackathon track scoring — Build + Bot</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #171e26;
+      --panel-2: #1c2530;
+      --line: #2a3542;
+      --text: #e8eef4;
+      --muted: #9aa8b5;
+      --win: #3dd68c;
+      --win-bg: rgba(61, 214, 140, 0.12);
+      --mid: #f0c14b;
+      --mid-bg: rgba(240, 193, 75, 0.12);
+      --warn: #ff7a6b;
+      --accent: #7ab8ff;
+      --bot: #c9a0ff;
+      --bot-bg: rgba(201, 160, 255, 0.12);
+      --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 72px;
+    }
+
+    header.hero {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #1a2430 0%, var(--panel) 100%);
+      padding: 28px 28px 24px;
+      margin-bottom: 28px;
+    }
+
+    .kicker {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+
+    h1 {
+      font-size: 32px;
+      line-height: 1.15;
+      margin: 0 0 12px;
+      font-weight: 650;
+    }
+
+    .lede {
+      color: var(--muted);
+      max-width: 72ch;
+      margin: 0;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 16px 18px;
+      background: var(--win-bg);
+      border: 1px solid rgba(61, 214, 140, 0.35);
+      display: grid;
+      gap: 4px;
+    }
+
+    .callout.bot {
+      background: var(--bot-bg);
+      border-color: rgba(201, 160, 255, 0.4);
+    }
+
+    .callout strong { color: var(--win); font-size: 18px; }
+    .callout.bot strong { color: var(--bot); }
+    .callout span { color: var(--text); }
+
+    h2 {
+      font-size: 22px;
+      margin: 36px 0 12px;
+      font-weight: 650;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin: 0 0 8px;
+      font-weight: 650;
+    }
+
+    p { margin: 0 0 12px; }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      background: var(--panel-2);
+    }
+
+    td.center, th.center { text-align: center; font-variant-numeric: tabular-nums; }
+
+    tr.win-row td { background: var(--win-bg); }
+    tr.mid-row td { background: var(--mid-bg); }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .tag.win { color: var(--win); border-color: rgba(61, 214, 140, 0.4); }
+    .tag.bot { color: var(--bot); border-color: rgba(201, 160, 255, 0.45); }
+
+    .grid-3, .grid-2 {
+      display: grid;
+      gap: 14px;
+      margin: 16px 0 8px;
+    }
+
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card.winner { border-color: rgba(61, 214, 140, 0.45); }
+    .card.bot { border-color: rgba(201, 160, 255, 0.45); }
+
+    .score-big {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 650;
+    }
+    .score-big.win { color: var(--win); }
+    .score-big.mid { color: var(--mid); }
+
+    .card ul, .split ul { margin: 0; padding-left: 18px; }
+    .card li, .split li { margin: 0 0 6px; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .pro { border-left: 3px solid var(--win); padding-left: 12px; }
+    .con { border-left: 3px solid var(--warn); padding-left: 12px; }
+
+    .track-block {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 18px;
+      margin: 14px 0 22px;
+    }
+
+    .track-block.winner { border-color: rgba(61, 214, 140, 0.45); }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    ol.demo, pre.brief {
+      margin: 8px 0 0;
+    }
+
+    ol.demo { padding-left: 22px; }
+    ol.demo li { margin: 0 0 6px; }
+
+    pre.brief {
+      background: #10161c;
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    footer {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    a { color: var(--accent); }
+
+    @media (max-width: 860px) {
+      .grid-3, .grid-2, .split { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="kicker">Grok Enablement Workshop · Module 4 · judge-validated</p>
+      <h1>Build the desk. Staff a Bot. Sky is the limit.</h1>
+      <p class="lede">
+        Judges confirmed extras are allowed and a Grok Bot is a plus.
+        Grok Build is still the live desk. Grok Bot is the overnight clerk that waits for a yes.
+        One story, one laptop.
+      </p>
+      <div class="callout">
+        <strong>Win pick: 4.3 Claim intake + Intake Clerk bot</strong>
+        <span>Demo CL-03 open and CL-04 refuse in Grok Build. Then show the Bot that re-runs the same script, never states a payout, and waits for a click before an open.</span>
+      </div>
+      <div class="callout bot">
+        <strong>Judge note</strong>
+        <span>Sky is the limit. Using a Grok Bot is a plus — it is now part of the win, not a side comment.</span>
+      </div>
+    </header>
+
+    <h2>Two products, one story</h2>
+    <div class="grid-2">
+      <article class="card winner">
+        <p class="kicker">Required</p>
+        <h3>Grok Build — the desk</h3>
+        <p>Inspect, AGENTS.md, plan, skill, hook, MCP, rerunnable script, test. Live CL-03 and CL-04. Quote <code>policy-excerpt.md</code>.</p>
+      </article>
+      <article class="card bot">
+        <p class="kicker">Plus</p>
+        <h3>Grok Bot — the clerk</h3>
+        <p>Named teammate on a cloud computer. Keeps the queue after the lid closes. Waits for a yes before an open. Never sends, never pays.</p>
+      </article>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Grok Build</th>
+          <th>Grok Bot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Job</td>
+          <td>Decide the case, live, on this laptop</td>
+          <td>Re-run the same script on the queue overnight</td>
+        </tr>
+        <tr>
+          <td>Who clicks before it sends</td>
+          <td>You accept the plan / the clerk confirms</td>
+          <td>Bot waits. Open and hold need a human yes. Refuse is logged, not sent.</td>
+        </tr>
+        <tr>
+          <td>Undo</td>
+          <td>Revert the claim to draft</td>
+          <td>Nothing went out — Bot never sent</td>
+        </tr>
+        <tr>
+          <td>Log</td>
+          <td>CL-id, open/hold/refuse, policy quote, time, no amount</td>
+          <td>Same log, written while you are gone</td>
+        </tr>
+        <tr>
+          <td>Rules</td>
+          <td>Only policy-excerpt.md via MCP lookup_rule</td>
+          <td>Same file. No invented rules. No payout. No medical or legal advice.</td>
+        </tr>
+        <tr>
+          <td>May it invent a vehicle, window, or payout?</td>
+          <td>No</td>
+          <td>No</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Final scoring by track (with Bot)</h2>
+    <p class="note">
+      Derived 0–20 for the two live cases, plus a Bot plus on “if this went live.”
+      Official judging has no published points. Likely assumes the must-show list is done
+      and the Bot is named, permissioned, and shown for 20 seconds — not a second product demo.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Track</th>
+          <th>What it does</th>
+          <th>Pass / refuse</th>
+          <th>Bot name</th>
+          <th class="center">Floor</th>
+          <th class="center">Ceiling</th>
+          <th class="center">Likely without Bot</th>
+          <th class="center">Likely with Bot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="win-row">
+          <td><span class="tag win">WIN</span> 4.3 Claim intake</td>
+          <td>Open, hold, or refuse against a policy excerpt. Never promise a payout.</td>
+          <td>CL-03 open · CL-04 refuse</td>
+          <td>Intake Clerk</td>
+          <td class="center">12</td>
+          <td class="center">20</td>
+          <td class="center">18</td>
+          <td class="center"><strong>20</strong></td>
+        </tr>
+        <tr>
+          <td>4.1 Dispatch desk</td>
+          <td>Assign jobs from a roster and a queue. Refuse vehicles that are out of service.</td>
+          <td>Eligible assign · T-14 refuse</td>
+          <td>Night Dispatcher</td>
+          <td class="center">14</td>
+          <td class="center">20</td>
+          <td class="center">17</td>
+          <td class="center">19</td>
+        </tr>
+        <tr class="mid-row">
+          <td>4.2 Rights clearance</td>
+          <td>Decide whether a film may be shown in a territory. Cite the rights file.</td>
+          <td>In-catalog clear · Night Train DE refuse</td>
+          <td>Clearance Clerk</td>
+          <td class="center">16</td>
+          <td class="center">19</td>
+          <td class="center">17</td>
+          <td class="center">18</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid-3">
+      <article class="card winner">
+        <p class="kicker">4.3</p>
+        <h3>Claim intake</h3>
+        <div class="score-big win">20 with Bot</div>
+        <p class="meta">18 without · still the win</p>
+        <p>Best Bot story: wait for yes before a claim number exists. Never a payout. Same shape as Module 3.</p>
+      </article>
+      <article class="card">
+        <p class="kicker">4.1</p>
+        <h3>Dispatch desk</h3>
+        <div class="score-big mid">19 with Bot</div>
+        <p class="meta">17 without · runner-up</p>
+        <p>Bot waits before a job is sent to a vehicle. T-14 never goes out. Matching bugs still the risk.</p>
+      </article>
+      <article class="card">
+        <p class="kicker">4.2</p>
+        <h3>Rights clearance</h3>
+        <div class="score-big mid">18 with Bot</div>
+        <p class="meta">17 without · safest finish</p>
+        <p>Bot waits before a showing is booked. Live-ops still thinner than intake or dispatch.</p>
+      </article>
+    </div>
+
+    <h2>Why Bot pulls you ahead</h2>
+    <p>Everyone who finishes will have AGENTS.md, a skill, a hook, and MCP. That row is a wash. Judges said Bot is a plus — that is the new differentiator on “if this went live.”</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Judge area</th>
+          <th>Build alone</th>
+          <th>Build + Bot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Grok Build use</td>
+          <td>Must-show list</td>
+          <td>Same list. Do not skip it to play with Bot.</td>
+        </tr>
+        <tr>
+          <td>Decisions</td>
+          <td>Quote the file. Off-scope refused.</td>
+          <td>Bot uses the same file. Still no invented rules. Still no payout.</td>
+        </tr>
+        <tr class="win-row">
+          <td>If this went live</td>
+          <td>You describe who clicks, undo, log</td>
+          <td>You <em>show</em> the teammate that waits for the click after the laptop closes</td>
+        </tr>
+        <tr>
+          <td>Demo</td>
+          <td>Pass + refuse live</td>
+          <td>Pass + refuse live, then 20 seconds of Bot. Same story.</td>
+        </tr>
+        <tr>
+          <td>Team</td>
+          <td>One laptop</td>
+          <td>Still one laptop. Bot is the overnight clerk for this desk, not a second pitch.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Intake Clerk — paste into Grok Bot</h2>
+    <p class="meta">Settings are three fields. Be specific. Reviewer must block send / spend / delete / payout language.</p>
+    <pre class="brief">Name: Intake Clerk
+Title: Claim intake night watch
+Description: Re-run the claim-intake script on fnol.json. The only rule source is policy-excerpt.md via lookup_rule. For each report return open, hold for photos, or refuse, and quote the policy line. Never state a payout or settlement amount. Never give medical or legal advice. CL-03 glass stays open and waits for the clerk to click before a claim number exists. CL-04 flood stays refused and is logged, not sent. Hold for photos waits for the clerk. Off-scope questions are refused. Write a log line: claim id, decision, policy quote, timestamp, no amount. If anything would send, spend, delete, or name money, stop and ask for a yes.</pre>
+
+    <h2>Demo order (still five steps, Bot is the live-ops beat)</h2>
+    <ol class="demo">
+      <li>Name the track: “Claim intake. Open, hold, or refuse against the policy excerpt. Never a payout. A Grok Bot keeps the queue after we close the laptop.”</li>
+      <li>Grok Build — CL-03 → open. Quote the glass line.</li>
+      <li>Grok Build — CL-04 → refuse. Quote the flood exclusion.</li>
+      <li>Point at AGENTS.md, the skill, the hook, MCP lookup_rule, then the Intake Clerk bot (name, wait-for-yes, no payout).</li>
+      <li>Stop. Questions from judges only.</li>
+    </ol>
+
+    <h2>4.3 Claim intake — win track</h2>
+    <div class="track-block winner">
+      <p class="meta">Files: fnol.json, policy-excerpt.md, rules_mcp.py. Scoring case: CL-04 refuse.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th class="center">Grok Build*</th>
+            <th class="center">Decisions</th>
+            <th class="center">Went live</th>
+            <th class="center">Demo</th>
+            <th class="center">Team*</th>
+            <th class="center">/10</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="win-row">
+            <td>CL-03 glass → open, no payout. Bot waits for click.</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+          <tr class="win-row">
+            <td>CL-04 flood → refuse, no payout. Bot logs, does not send. <span class="tag win">scoring case</span></td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="split">
+        <div class="pro">
+          <h3>Pros</h3>
+          <ul>
+            <li>Maps 1:1 to Module 3. Judges already know this desk.</li>
+            <li>Bot is the click-before-send story, not a speech.</li>
+            <li>“Never a payout” is a feature. Bot reviewer blocks money language.</li>
+          </ul>
+        </div>
+        <div class="con">
+          <h3>Cons</h3>
+          <ul>
+            <li>Any dollar amount zeros Decisions, including from the Bot.</li>
+            <li>Do not demo a third case or a second Bot unless asked.</li>
+            <li>Must-show Grok Build list still required. Bot does not replace it.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h2>4.1 Dispatch desk</h2>
+    <div class="track-block">
+      <p class="meta">Files: vehicles.json, jobs.json, dispatch_rules.md, rules_mcp.py. Bot: Night Dispatcher waits before a job is sent. T-14 never goes out.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th class="center">Grok Build*</th>
+            <th class="center">Decisions</th>
+            <th class="center">Went live</th>
+            <th class="center">Demo</th>
+            <th class="center">Team*</th>
+            <th class="center">/10</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Eligible vehicle assigned. Bot waits for dispatcher yes.</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+          <tr>
+            <td>T-14 refused. Bot logs, does not send.</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="split">
+        <div class="pro">
+          <h3>Pros</h3>
+          <ul>
+            <li>Most visual demo. Bot waiting before radio-send is easy to see.</li>
+            <li>T-14 is the most memorable refuse.</li>
+          </ul>
+        </div>
+        <div class="con">
+          <h3>Cons</h3>
+          <ul>
+            <li>Free + range + hours still three ways to be wrong.</li>
+            <li>Inventing a vehicle fails the lab. Bot must not invent one either.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h2>4.2 Rights clearance</h2>
+    <div class="track-block">
+      <p class="meta">Files: titles.json, rights_rules.md, rules_mcp.py. Bot: Clearance Clerk waits before a showing is booked. Night Train in DE never books.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th class="center">Grok Build*</th>
+            <th class="center">Decisions</th>
+            <th class="center">Went live</th>
+            <th class="center">Demo</th>
+            <th class="center">Team*</th>
+            <th class="center">/10</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>In-catalog → clear. Bot waits before booking.</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+          <tr>
+            <td>Night Train in DE → refuse. Bot logs, does not book.</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">2</td>
+            <td class="center">10</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="split">
+        <div class="pro">
+          <h3>Pros</h3>
+          <ul>
+            <li>Fastest finish. Bot raises the live-ops ceiling a little.</li>
+            <li>Named refuse is easy to show.</li>
+          </ul>
+        </div>
+        <div class="con">
+          <h3>Cons</h3>
+          <ul>
+            <li>Even with Bot, thinner operations story than intake.</li>
+            <li>Clearing outside a window is still a silent fail.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h2>Sky-is-the-limit extras (only after the desk works)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Do</th>
+          <th>Skip</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>One named Bot with wait-for-yes and a deny list (send / spend / payout / invented rules)</td>
+          <td>A crew of five Bots. Judges asked for one story.</td>
+        </tr>
+        <tr>
+          <td>Plugin packing skill + hook + MCP, if it saves pointing time</td>
+          <td>Gold-plating the plugin instead of CL-04.</td>
+        </tr>
+        <tr>
+          <td>A visible log line with no amounts</td>
+          <td>Slides. Screenshots of a run that is not live.</td>
+        </tr>
+        <tr>
+          <td>Hold-for-photos in the pocket if a judge asks</td>
+          <td>Leading with a third case.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <footer>
+      Sources:
+      <a href="https://grok-enablement-workshop.grok.me/modules/hackathon">tracks</a>
+      ·
+      <a href="https://grok-enablement-workshop.grok.me/judging">judging</a>
+      ·
+      <a href="https://docs.x.ai/grok-bot/overview">Grok Bot</a>.
+      Judge-validated this session: sky is the limit; using a Grok Bot is a plus.
+      Scores are a derived win model, not published judge weights.
+      No real customer data. No medical, legal, or payment advice.
+    </footer>
+  </div>
+</body>
+</html>
