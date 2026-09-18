@@ -45,18 +45,8 @@ run_advice() {
 
 run_all() {
   if [[ "$JSON" -eq 1 ]]; then
-    python3 - <<'PY'
-import json, subprocess, sys
-cmd = [sys.executable, "python/decide.py", "--json"]
-coverage = json.loads(subprocess.check_output(cmd, text=True))
-advice = json.loads(
-    subprocess.check_output(
-        cmd + ["--advice", "will we pay?"],
-        text=True,
-    )
-)
-print(json.dumps({"coverage": coverage, "advice": advice}, indent=2))
-PY
+    "${DECIDE[@]}" --json
+    "${DECIDE[@]}" --json --advice "will we pay?"
     return
   fi
   echo "=== CL-03  open / PX-GLASS ==="

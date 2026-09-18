@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Golden tests: kit reports still decide open / hold / refuse from policy-excerpt.md."""
 from __future__ import annotations
 
@@ -78,7 +77,7 @@ class DeskGoldenTests(unittest.TestCase):
     def test_cl08_hold_collision(self) -> None:
         row = load_json("CL-08")
         self.assertEqual(row["decision"], "hold")
-        self.assertEqual(row["label"], "hold for photos")
+        self.assertNotIn("label", row)
         self.assertEqual(row["rule_id"], "PX-COLLISION")
         self.assertFalse(row["photos"])
         self.assertIn(row["quoted"], POLICY)
@@ -165,6 +164,15 @@ class DeskGoldenTests(unittest.TestCase):
         self.assertEqual(row["decision"], "refuse")
         self.assertIsNone(row["rule_id"])
         self.assertEqual(row["quoted"], "No rule line matched.")
+        self.assertIn("medical or legal", row["message"])
+
+    def test_off_desk_ask_is_no_match_without_medical_copy(self) -> None:
+        row = load_json("--advice", "is glass covered")
+        self.assertEqual(row["decision"], "refuse")
+        self.assertIsNone(row["rule_id"])
+        self.assertEqual(row["quoted"], "No rule line matched.")
+        self.assertNotIn("message", row)
+        self.assertNotEqual(row.get("rule_id"), "PX-NO-PAY")
 
     def test_unknown_id_exits_1(self) -> None:
         completed = run_decide("CL-99", check=False)
@@ -180,7 +188,5 @@ class DeskGoldenTests(unittest.TestCase):
             text=True,
         )
         self.assertIn("refuse", completed.stdout)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertIn("PX-FLOOD.", completed.stdout)
+        self.assertIn("photos=True", completed.stdout)

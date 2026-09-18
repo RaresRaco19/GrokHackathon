@@ -13,7 +13,6 @@ POLICY_FILE = ROOT / "md" / "policy-excerpt.md"
 REPORTS_FILE = ROOT / "data" / "fnol.json"
 
 REQUIRED_KEYS = ("id", "peril", "photos", "cover")
-DECISIONS = ("open", "hold", "refuse")
 NO_MATCH = "No rule line matched."
 
 PAYOUT_REFUSAL = "The desk does not state a payout."
@@ -51,8 +50,6 @@ MEDICAL_LEGAL_PATTERNS = (
     r"\blawyer\b",
 )
 
-SEND_STATE = {"open": "draft", "hold": "hold", "refuse": "refused"}
-
 
 def load_policy() -> dict[str, str]:
     text = POLICY_FILE.read_text(encoding="utf-8")
@@ -81,23 +78,6 @@ def normalize_report(raw: dict) -> dict:
     }
 
 
-def _matches(text: str, patterns: tuple[str, ...]) -> bool:
-    lowered = text.lower()
-    return any(re.search(pattern, lowered) for pattern in patterns)
-
-
-def is_payout_family(text: str) -> bool:
-    return _matches(text, PAYOUT_PATTERNS)
-
-
-def is_medical_legal(text: str) -> bool:
-    return _matches(text, MEDICAL_LEGAL_PATTERNS)
-
-
-def is_off_scope(text: str) -> bool:
-    return is_payout_family(text) or is_medical_legal(text)
-
-
 def quote_line(policy: dict[str, str], rule_id: str) -> str:
     body = policy.get(rule_id)
     if not body:
@@ -115,7 +95,6 @@ def record(
 ) -> dict:
     out: dict = {
         "decision": decision,
-        "label": "hold for photos" if decision == "hold" else decision,
         "rule_id": rule_id,
         "quoted": quoted,
         "source": POLICY_FILE.name,
@@ -127,8 +106,6 @@ def record(
                 "peril": report["peril"],
                 "photos": report["photos"],
                 "cover": report["cover"],
-                "send_state": SEND_STATE[decision],
-                "claim_number": None,
             }
         )
     if message:
@@ -137,19 +114,22 @@ def record(
 
 
 def refuse_off_scope(text: str, policy: dict[str, str]) -> dict:
-    if is_payout_family(text):
+    lowered = text.lower()
+    if any(re.search(pattern, lowered) for pattern in PAYOUT_PATTERNS):
         return record(
             decision="refuse",
             rule_id="PX-NO-PAY",
             quoted=quote_line(policy, "PX-NO-PAY"),
             message=PAYOUT_REFUSAL,
         )
-    return record(
-        decision="refuse",
-        rule_id=None,
-        quoted=NO_MATCH,
-        message=MEDICAL_LEGAL_REFUSAL,
-    )
+    if any(re.search(pattern, lowered) for pattern in MEDICAL_LEGAL_PATTERNS):
+        return record(
+            decision="refuse",
+            rule_id=None,
+            quoted=NO_MATCH,
+            message=MEDICAL_LEGAL_REFUSAL,
+        )
+    return record(decision="refuse", rule_id=None, quoted=NO_MATCH)
 
 
 def decide_report(report: dict, policy: dict[str, str]) -> dict:
@@ -189,7 +169,8 @@ def render(result: dict) -> str:
             f"{result['id']}  {result.get('peril', '')}  "
             f"photos={result.get('photos')}  cover={result.get('cover', '')}"
         )
-    lines.append(f"decision  {result.get('label') or result['decision']}")
+    shown = "hold for photos" if result["decision"] == "hold" else result["decision"]
+    lines.append(f"decision  {shown}")
     if result.get("rule_id"):
         lines.append(f"cited    {result['rule_id']}")
     lines.append(f"quoted   {result['quoted']}")
@@ -227,8 +208,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.advice:
         results = [refuse_off_scope(args.advice, policy)]
-    elif args.report_id and is_off_scope(args.report_id):
-        results = [refuse_off_scope(args.report_id, policy)]
     elif args.report_id:
         reports = load_reports()
         match = next((row for row in reports if row["id"] == args.report_id), None)
