@@ -38,12 +38,20 @@
 
     function trayItem(r, selected) {
       const current = r.id === selected ? ' aria-current="true"' : "";
-      return `<button type="button" class="tray-item" data-id="${r.id}"${current}>
-        ${Intake.perilIcon(r.peril)}
-        <span class="id numeric">${r.id}</span>
-        <span class="tray-meta">${r.peril} · ${Intake.photosLabel(r.photos)}</span>
-        ${Intake.badge(r.decision)}
-      </button>`;
+      const count = (r.files || []).length;
+      return `<div class="tray-row">
+        <button type="button" class="tray-item" data-id="${r.id}"${current}>
+          ${Intake.perilIcon(r.peril)}
+          <span class="id numeric">${r.id}</span>
+          <span class="tray-meta">${r.peril} · ${Intake.photosLabel(r.photos)}</span>
+          ${Intake.badge(r.decision)}
+        </button>
+        <label class="tray-file" title="Add file to ${r.id}">
+          <span class="sr-only">Add file to ${r.id}</span>
+          <input type="file" accept="image/*,.pdf,application/pdf" data-upload="${r.id}" />
+          <span class="numeric">${count}</span>
+        </label>
+      </div>`;
     }
 
     function pane(r) {
@@ -55,6 +63,7 @@
           <h2>${r.id} ${Intake.badge(r.decision)}</h2>
           <p class="clerk-phrase">Assessing against the policy excerpt…</p>
           <p>Grok looks up the cover in the rules MCP, then returns open, hold for photos, or refuse with a verbatim quote.</p>
+          ${Intake.fileBox(r)}
         </article>`;
       }
       const phrase = Intake.decisionPhrase(r.decision);
@@ -77,6 +86,7 @@
         </dl>
         <p class="score-meta">Quoted from policy-excerpt.md</p>
         <blockquote class="quote">${r.quote}</blockquote>
+        ${Intake.fileBox(r)}
         <p>Confirm is the only way a claim number is minted. Refuse cannot be sent. Hold waits for photos. Undo restores draft.</p>
         <div class="claim-actions">
           <button class="btn btn-primary" type="button" data-confirm ${r.can_confirm ? "" : "disabled"} title="${reason(r)}">Confirm</button>
@@ -89,6 +99,13 @@
       host.querySelectorAll(".tray-item").forEach((btn) => {
         btn.addEventListener("click", () => {
           selectedId = btn.getAttribute("data-id");
+          history.replaceState(null, "", "clerk.html?id=" + encodeURIComponent(selectedId));
+          paint(data);
+        });
+      });
+      host.querySelectorAll("[data-log-id]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedId = btn.getAttribute("data-log-id");
           history.replaceState(null, "", "clerk.html?id=" + encodeURIComponent(selectedId));
           paint(data);
         });
@@ -114,6 +131,7 @@
           if (r.can_confirm) host.querySelector("[data-confirm]")?.click();
         });
       }
+      Intake.bindUploads(host, () => Intake.loadData({ force: true }).then(paint));
     }
 
     function paint(data) {
@@ -176,8 +194,12 @@
             )
             .join("")}
         </aside>
-        ${pane(r)}`;
+        ${pane(r)}
+        ${Intake.logMarkup(data.log, { selectedId: r && r.id })}`;
       bind(data, r);
+      if (location.hash === "#log") {
+        document.getElementById("log")?.scrollIntoView({ block: "nearest" });
+      }
     }
 
     if (Intake.demoState() === "error") {

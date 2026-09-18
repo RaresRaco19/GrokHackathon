@@ -202,6 +202,41 @@
     return `<span class="peril-icon" data-peril="${peril || "other"}" aria-hidden="true"><svg viewBox="0 0 24 24" ${stroke}>${inner}</svg></span>`;
   }
 
+  const LOG_LABEL = {
+    refuse_logged: "Refuse logged",
+    confirmed: "Confirmed",
+    undone: "Undone",
+    ask_refused: "Ask refused",
+    assess: "Assessed",
+    upload: "File added",
+  };
+
+  function logMarkup(events, opts) {
+    const selected = (opts && opts.selectedId) || "";
+    const rows = events || [];
+    const body = rows.length
+      ? rows
+          .map((e) => {
+            const claimId = /^CL-\d+/i.test(e.id || "") ? e.id : "";
+            const current = claimId && claimId === selected ? ' aria-current="true"' : "";
+            const pick = claimId ? ` data-log-id="${claimId}"` : "";
+            const tag = claimId ? "button" : "div";
+            const type = claimId ? ' type="button"' : "";
+            return `<${tag} class="desk-log-row"${type}${pick}${current}>
+              <span class="desk-log-when"><time datetime="${e.ts || ""}" title="${e.ts ? absolute(e.ts) : ""}">${e.ts ? relative(e.ts) : "—"}</time></span>
+              <span class="desk-log-id numeric">${claimId || "—"}</span>
+              <span class="desk-log-event">${LOG_LABEL[e.event] || e.event || ""}</span>
+              <span class="desk-log-detail numeric">${e.detail || ""}</span>
+            </${tag}>`;
+          })
+          .join("")
+      : `<p class="desk-log-empty">No events on this laptop yet.</p>`;
+    return `<aside class="desk-log" id="log" aria-label="Live-ops log">
+      <div class="tray-head">This laptop <span class="numeric">${rows.length}</span></div>
+      <div class="desk-log-body">${body}</div>
+    </aside>`;
+  }
+
   function groupByPeril(rows) {
     const order = ["glass", "flood", "collision"];
     const map = {};
@@ -230,7 +265,7 @@
         <nav class="nav-links" aria-label="Desk">
           <a href="clerk.html" ${current === "clerk" ? 'aria-current="page"' : ""}>Desk</a>
           <a href="policy.html" ${current === "policy" ? 'aria-current="page"' : ""}>Policy</a>
-          <a href="log.html" ${current === "log" ? 'aria-current="page"' : ""}>Log</a>
+          <a href="clerk.html#log" ${current === "log" ? 'aria-current="page"' : ""}>Log</a>
           <button class="linkish" type="button" data-ask>Ask</button>
         </nav>
         <a class="wordmark" href="index.html" ${current === "overview" ? 'aria-current="page"' : ""}>INTAKE</a>
@@ -264,7 +299,7 @@
         <a href="clerk.html">Desk</a>
         <a href="queue.html">Queue</a>
         <a href="policy.html">Policy</a>
-        <a href="log.html">Log</a>
+        <a href="clerk.html#log">Log</a>
         <button class="linkish" type="button" data-ask>Ask</button>
         <a href="index.html">Intake home</a>
       </div>
@@ -498,6 +533,73 @@
     return api("POST", "/api/assess", { id }).then(normalizeReport);
   }
 
+  function formatSize(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return Math.round(n / 102.4) / 10 + " KB";
+    return Math.round(n / 104857.6) / 10 + " MB";
+  }
+
+  function fileBox(r) {
+    const files = r.files || [];
+    const items = files.length
+      ? `<ul class="file-list">${files
+          .map(
+            (f) => `<li>
+              <a href="${f.url}" target="_blank" rel="noopener">${f.name || "file"}</a>
+              <span class="numeric">${formatSize(f.size)}</span>
+            </li>`
+          )
+          .join("")}</ul>`
+      : `<p class="file-empty">No files on this report yet.</p>`;
+    return `<section class="file-box">
+      <div class="file-head">
+        <h3>Files</h3>
+        <label class="btn btn-ghost file-add">Add file
+          <input type="file" accept="image/*,.pdf,application/pdf" data-upload="${r.id}" />
+        </label>
+      </div>
+      ${items}
+    </section>`;
+  }
+
+  function uploadFile(id, file) {
+    cache = null;
+    const body = new FormData();
+    body.append("id", id);
+    body.append("file", file, file.name);
+    return fetch("/api/upload", { method: "POST", body })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const err = new Error(data.error || "upload failed");
+          err.payload = data;
+          throw err;
+        }
+        toast("File added to " + id + ".");
+        return normalizeReport(data);
+      });
+  }
+
+  function bindUploads(root, onDone) {
+    if (!root) return;
+    root.querySelectorAll("[data-upload]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const id = input.getAttribute("data-upload");
+        const file = input.files && input.files[0];
+        if (!id || !file) return;
+        uploadFile(id, file)
+          .then((row) => {
+            if (row.decision === "hold" && row.photos) return assessReport(id);
+          })
+          .then(() => onDone && onDone())
+          .catch((ex) => {
+            toast((ex.payload && ex.payload.error) || ex.message || "Could not add file.", "error");
+          });
+      });
+    });
+  }
+
   function getQueueFilters() {
     try {
       return Object.assign({ decision: "all", photos: "all", send_state: "all" }, JSON.parse(localStorage.getItem(FILTER_KEY) || "{}"));
@@ -519,6 +621,7 @@
     photosLabel,
     perilIcon,
     groupByPeril,
+    logMarkup,
     relative,
     absolute,
     scoreCard,
@@ -528,6 +631,9 @@
     confirmReport,
     undoReport,
     assessReport,
+    fileBox,
+    uploadFile,
+    bindUploads,
     demoState,
     getQueueFilters,
     setQueueFilters,

@@ -987,10 +987,10 @@ table.data .id {
 .prelink .btn { flex-shrink: 0; pointer-events: none; }
 
 .clerk-layout {
-  width: min(var(--shell), calc(100% - 48px));
+  width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr) 300px;
   gap: var(--space-5);
   align-items: start;
 }
@@ -1029,6 +1029,30 @@ table.data .id {
   color: var(--color-text);
 }
 .tray-group-head .numeric { margin-left: auto; }
+.tray-row {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  border-bottom: 1px solid var(--color-border);
+}
+.tray-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--hit);
+  min-height: var(--hit);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-left: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+.tray-file:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.tray-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
 .tray-item {
   display: grid;
   grid-template-columns: 32px 1fr auto;
@@ -1039,7 +1063,6 @@ table.data .id {
   min-height: var(--hit);
   padding: 12px 16px;
   border: 0;
-  border-bottom: 1px solid var(--color-border);
   background: transparent;
   text-align: left;
   font: inherit;
@@ -1089,6 +1112,106 @@ table.data .id {
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
+.file-box {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+}
+.file-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.file-head h3 { margin: 0; }
+.file-add { position: relative; overflow: hidden; }
+.file-add input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--color-border);
+  margin-top: 8px;
+  font-size: 0.875rem;
+}
+.file-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+.desk-log {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: sticky;
+  top: calc(var(--nav-h) + 16px);
+  max-height: calc(100vh - var(--nav-h) - 32px);
+  display: flex;
+  flex-direction: column;
+}
+.desk-log-body {
+  overflow: auto;
+}
+.desk-log-empty {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+.desk-log-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: 100%;
+  min-height: var(--hit);
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+div.desk-log-row { cursor: default; }
+.desk-log-row:hover { background: var(--color-surface-hover); }
+.desk-log-row[aria-current="true"] {
+  background: var(--color-surface-hover);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+.desk-log-when {
+  grid-column: 1;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.desk-log-id {
+  grid-column: 2;
+  font-size: 0.75rem;
+}
+.desk-log-event {
+  grid-column: 1;
+  font-size: 0.875rem;
+}
+.desk-log-detail {
+  grid-column: 2;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
 
 .site-footer {
   border-top: 1px solid var(--color-border);
@@ -1114,6 +1237,17 @@ table.data .id {
 @media (max-width: 1279px) {
   .wordmark { position: static; transform: none; }
   .topbar-inner { gap: 8px; }
+}
+
+@media (max-width: 1099px) {
+  .clerk-layout {
+    grid-template-columns: 240px 1fr;
+  }
+  .desk-log {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: 320px;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1162,6 +1296,7 @@ table.data .id {
   .split, .claim-grid, .clerk-layout, .example, .site-footer .wrap {
     grid-template-columns: 1fr;
   }
+  .desk-log { position: static; max-height: none; }
   .prelink {
     flex-direction: column;
     align-items: flex-start;

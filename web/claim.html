@@ -54,6 +54,7 @@
           </dl>
           <p class="score-meta">Quoted from policy-excerpt.md</p>
           <blockquote class="quote">${r.quote}</blockquote>
+          ${Intake.fileBox(r)}
           <p>Confirm is the only way a claim number is minted. Refuse cannot be sent. Undo restores draft.</p>
           <div class="claim-actions">
             <button class="btn btn-primary" type="button" data-confirm ${r.can_confirm ? "" : "disabled"} title="${reason(r)}">Confirm</button>
@@ -85,6 +86,15 @@
       cta.addEventListener("click", (e) => {
         e.preventDefault();
         if (r.can_confirm) document.querySelector("[data-confirm]").click();
+      });
+      Intake.bindUploads(document.querySelector("[data-body]"), () => {
+        Intake.loadData({ force: true }).then((data) => {
+          const next = data.all.find((x) => x.id === r.id);
+          document.body.querySelector(".topbar")?.remove();
+          document.body.querySelector(".drawer")?.remove();
+          document.body.querySelector("dialog")?.remove();
+          if (next) paint(next);
+        });
       });
     }
 

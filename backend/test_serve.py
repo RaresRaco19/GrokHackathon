@@ -151,6 +151,46 @@ class ServeTests(unittest.TestCase):
         self.assertEqual(payload["rule_id"], "PX-NO-PAY")
         self.assertTrue(payload["quote"].startswith("PX-NO-PAY."))
 
+    def _upload(self, report_id: str, filename: str, content: bytes, mime: str = "image/jpeg") -> tuple[int, dict]:
+        boundary = "----TestBoundary"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="id"\r\n\r\n{report_id}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            f"Content-Type: {mime}\r\n\r\n"
+        ).encode("utf-8") + content + f"\r\n--{boundary}--\r\n".encode("utf-8")
+        req = Request(self.base + "/api/upload", data=body, method="POST")
+        req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+        try:
+            with urlopen(req, timeout=30) as resp:
+                return resp.status, json.loads(resp.read().decode("utf-8"))
+        except HTTPError as exc:
+            payload = json.loads(exc.read().decode("utf-8"))
+            return exc.code, payload
+
+    def test_upload_on_each_report(self) -> None:
+        status, payload = self._upload("CL-08", "bumper.jpg", b"\xff\xd8fakejpeg")
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["photos"])
+        self.assertEqual(len(payload["files"]), 1)
+        url = payload["files"][0]["url"]
+        req = Request(self.base + url, method="GET")
+        with urlopen(req, timeout=10) as resp:
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(resp.read(), b"\xff\xd8fakejpeg")
+        status, queue = self._json("GET", "/api/queue")
+        self.assertEqual(status, 200)
+        row = next(item for item in queue["items"] if item["id"] == "CL-08")
+        self.assertTrue(row["photos"])
+        self.assertEqual(row["files"][0]["name"], "bumper.jpg")
+
+    def test_upload_rejects_unknown_report(self) -> None:
+        status, payload = self._upload("CL-99", "x.jpg", b"abc")
+        self.assertEqual(status, 400)
+        self.assertIn("unknown", payload["error"])
+
     def test_clerk_html_served(self) -> None:
         req = Request(self.base + "/clerk.html", method="GET")
         with urlopen(req, timeout=10) as resp:

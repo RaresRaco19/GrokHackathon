@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +26,8 @@ from backend.store import (
     read_log,
     reset_session,
     save_decision,
+    save_upload,
+    stored_file,
     undo,
 )
 
@@ -42,7 +45,12 @@ PHOTO = {
         "Silver hatchback with a crumpled rear bumper in an empty parking lot.",
     ),
 }
-LOG_EVENT = {"refuse": "refuse_logged", "confirm": "confirmed", "undo": "undone"}
+LOG_EVENT = {
+    "refuse": "refuse_logged",
+    "confirm": "confirmed",
+    "undo": "undone",
+    "upload": "upload",
+}
 POLICY_IDS = ("PX-GLASS", "PX-FLOOD", "PX-COLLISION", "PX-NO-PAY")
 
 HOST = "127.0.0.1"
@@ -121,13 +129,68 @@ class DeskApp:
             "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
+    def _report_for_assess(self, report_id: str | None) -> dict[str, Any] | None:
+        if not report_id:
+            return None
+        reports = load_reports()
+        report = reports.get(str(report_id).upper())
+        if report is None:
+            return None
+        row = dict(report)
+        if item_state(str(report_id)).get("photos_on_file"):
+            row["photos"] = True
+        return row
+
     def _assess(self, report_id: str | None, question: str | None) -> dict[str, Any]:
         return assess(
             report_id=report_id,
             question=question,
+            report=self._report_for_assess(report_id),
             client=self.client,
             llm=self.llm,
         )
+
+    def upload_request(self, content_type: str, raw: bytes) -> dict[str, Any]:
+        fields, files = parse_multipart(content_type, raw)
+        report_id = str(fields.get("id") or "")
+        if not report_id:
+            return {"error": "id required", "status": 400}
+        if report_id.upper() not in load_reports():
+            return {"error": "unknown report", "status": 400}
+        if not files:
+            return {"error": "file required", "status": 400}
+        _field, filename, content, mime = files[0]
+        result = save_upload(report_id, filename, content, mime)
+        if not result.get("ok"):
+            return result
+        saved = item_state(report_id)
+        decision = saved.get("decision") if isinstance(saved.get("decision"), dict) else None
+        report = load_reports().get(report_id.upper(), {})
+        if decision:
+            item = _decorate(_merge(report, decision, saved), saved)
+        else:
+            item = dict(report)
+            item.update(
+                {
+                    "decision": None,
+                    "needs_assess": True,
+                    "send_state": saved.get("send_state") or "draft",
+                    "claim_number": saved.get("claim_number"),
+                    "can_confirm": False,
+                    "can_undo": saved.get("send_state") == "sent",
+                }
+            )
+            item = _decorate(item, saved)
+        item["ok"] = True
+        item["file"] = result["file"]
+        return item
+
+    def file_bytes(self, report_id: str, stored: str) -> tuple[int, bytes, str] | None:
+        path = stored_file(report_id, stored)
+        if path is None:
+            return None
+        mime, _ = mimetypes.guess_type(str(path))
+        return 200, path.read_bytes(), mime or "application/octet-stream"
 
     def assess_request(self, body: dict[str, Any]) -> dict[str, Any]:
         report_id = body.get("id")
@@ -205,11 +268,45 @@ def _merge(report: dict[str, Any], decision: dict[str, Any], saved: dict[str, An
     return item
 
 
+def parse_multipart(content_type: str, body: bytes) -> tuple[dict[str, str], list[tuple[str, str, bytes, str]]]:
+    match = re.search(r"boundary=([^;]+)", content_type or "", re.I)
+    if not match:
+        return {}, []
+    boundary = match.group(1).strip().strip('"').encode("utf-8")
+    fields: dict[str, str] = {}
+    files: list[tuple[str, str, bytes, str]] = []
+    for part in body.split(b"--" + boundary):
+        if not part or part.strip() in (b"", b"--"):
+            continue
+        part = part.lstrip(b"\r\n")
+        if b"\r\n\r\n" not in part:
+            continue
+        head, payload = part.split(b"\r\n\r\n", 1)
+        if payload.endswith(b"\r\n"):
+            payload = payload[:-2]
+        header = head.decode("utf-8", "replace")
+        name_m = re.search(r'name="([^"]+)"', header)
+        if not name_m:
+            continue
+        name = name_m.group(1)
+        file_m = re.search(r'filename="([^"]*)"', header)
+        type_m = re.search(r"Content-Type:\s*([^\r\n]+)", header, re.I)
+        if file_m:
+            mime = type_m.group(1).strip() if type_m else "application/octet-stream"
+            files.append((name, file_m.group(1), payload, mime))
+        else:
+            fields[name] = payload.decode("utf-8", "replace")
+    return fields, files
+
+
 def _decorate(item: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
     peril = str(item.get("peril") or "").lower()
     photo, alt = PHOTO.get(peril, ("assets/tray.jpg", "Intake file"))
     item.setdefault("photo", photo)
     item.setdefault("photo_alt", alt)
+    item["files"] = list(saved.get("files") or [])
+    if saved.get("photos_on_file"):
+        item["photos"] = True
     item["received_at"] = saved.get("received_at") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     send = item.get("send_state")
     if send == "sent":
@@ -268,6 +365,16 @@ def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
             if path == "/api/log":
                 self._json(200, {"events": app.public_log(), "log": app.public_log()})
                 return
+            if path.startswith("/api/files/"):
+                parts = [p for p in path.split("/") if p]
+                if len(parts) >= 4:
+                    blob = app.file_bytes(parts[2], parts[3])
+                    if blob:
+                        status, body, mime = blob
+                        self._send(status, body, mime)
+                        return
+                self._json(404, {"error": "not found"})
+                return
             static = static_file(path)
             if static:
                 status, body, mime = static
@@ -280,27 +387,30 @@ def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
-            body = self._body()
-            if body is None:
-                self._json(400, {"error": "invalid json"})
-                return
-            if path == "/api/assess":
-                result = app.assess_request(body)
-            elif path == "/api/confirm":
-                result = app.confirm_request(body)
-            elif path == "/api/undo":
-                result = app.undo_request(body)
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b""
+            if path == "/api/upload":
+                result = app.upload_request(self.headers.get("Content-Type") or "", raw)
             else:
-                self._json(404, {"error": "not found"})
-                return
+                body = self._json_body(raw)
+                if body is None:
+                    self._json(400, {"error": "invalid json"})
+                    return
+                if path == "/api/assess":
+                    result = app.assess_request(body)
+                elif path == "/api/confirm":
+                    result = app.confirm_request(body)
+                elif path == "/api/undo":
+                    result = app.undo_request(body)
+                else:
+                    self._json(404, {"error": "not found"})
+                    return
             status = int(result.pop("status", 200)) if isinstance(result, dict) else 200
             if isinstance(result, dict) and "error" in result and status == 200:
                 status = 400
             self._json(status, result)
 
-        def _body(self) -> dict[str, Any] | None:
-            length = int(self.headers.get("Content-Length") or 0)
-            raw = self.rfile.read(length) if length else b"{}"
+        def _json_body(self, raw: bytes) -> dict[str, Any] | None:
             if not raw:
                 return {}
             try:
