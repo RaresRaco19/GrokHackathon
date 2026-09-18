@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--
+  UI layer only. Start with bin/desk.sh (python/serve_desk.py).
+  Queue:   GET  /api/queue   → decide.py + data/fnol.json + md/policy-excerpt.md
+  Ask:     POST /api/ask
+  Confirm: POST /api/confirm → mints on open only
+  Undo:    POST /api/undo
+  Log:     GET  /api/log
+  Do not open this file as a static page; the APIs will be missing.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claim intake · FNOL desk</title>
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <div class="fnol">
+    <header class="mast">
+      <div class="brand">
+        <span class="mark">FN</span>
+        <div>
+          <p class="kicker">First notice of loss</p>
+          <p class="product">Claim intake desk</p>
+        </div>
+      </div>
+      <div class="meta">
+        <span id="queue-count">Queue</span>
+        <span>Laptop only · 127.0.0.1</span>
+      </div>
+    </header>
+
+    <section class="ops" aria-label="If this went live">
+      <article>
+        <h2>Who clicks before it sends</h2>
+        <p>The intake clerk. Open and hold stay draft until confirm. Refuse is logged, not sent.</p>
+      </article>
+      <article>
+        <h2>How you undo</h2>
+        <p>Undo restores draft and clears the claim number. History is appended, not deleted.</p>
+      </article>
+      <article>
+        <h2>What the log holds</h2>
+        <p>Report id, decision, quoted policy line, timestamp, optional claim number. No amount.</p>
+      </article>
+    </section>
+
+    <div class="shell">
+      <aside class="inbound">
+        <div class="inbound-head">
+          <div>
+            <p class="kicker">Today</p>
+            <h2>Inbound reports</h2>
+          </div>
+          <p class="hint">Confirm before send</p>
+        </div>
+        <ul id="queue"></ul>
+      </aside>
+
+      <section class="report">
+        <div class="report-head">
+          <div class="head-row">
+            <div>
+              <p class="mono" id="report-id"></p>
+              <h1 id="peril-title"></h1>
+              <p class="sub" id="subtitle"></p>
+            </div>
+            <div class="verdict" id="verdict">
+              <p class="lbl">Decision</p>
+              <p class="val" id="decision-label"></p>
+              <p class="rule mono" id="decision-rule"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <p class="lbl">Peril</p>
+            <p class="body" id="peril"></p>
+          </div>
+          <div class="card">
+            <p class="lbl">Photos</p>
+            <p class="body" id="photos"></p>
+          </div>
+          <div class="card">
+            <p class="lbl">Cover</p>
+            <p class="body" id="cover"></p>
+          </div>
+        </div>
+
+        <div class="lower">
+          <div class="card quote-card">
+            <p class="lbl">Quoted from the policy excerpt</p>
+            <p class="note" id="quote-body"></p>
+            <p class="mono send" id="send-state"></p>
+            <div class="actions">
+              <button type="button" id="confirm-btn">Confirm</button>
+              <button type="button" id="undo-btn" class="ghost">Undo to draft</button>
+            </div>
+            <p class="notice" id="notice" hidden></p>
+          </div>
+
+          <div class="ask">
+            <p class="lbl">Ask the desk</p>
+            <p class="hint">Intake coverage only. The desk will not name a payout.</p>
+            <form id="ask-form">
+              <input id="ask-input" placeholder="will we pay?" autocomplete="off" />
+              <button type="submit">Send to desk</button>
+            </form>
+            <div class="reply" id="reply" hidden></div>
+          </div>
+        </div>
+
+        <div class="card log-card">
+          <p class="lbl">Intake log</p>
+          <ul id="log" class="log"></ul>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script src="desk.js"></script>
+</body>
+</html>
