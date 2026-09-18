@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Policy excerpt — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <header class="page-head">
+      <h1>Policy excerpt</h1>
+      <p>The only rule book. Hooks block edits. Lookup is MCP lookup_rule.</p>
+    </header>
+    <div class="wrap-prose" data-rules></div>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    Intake.mountShell({ current: "policy" });
+    const host = document.querySelector("[data-rules]");
+    if (Intake.demoState() === "error") {
+      host.innerHTML = Intake.emptyState("Could not load the rule book.", "policy-excerpt.md did not load.", "Retry", "policy.html");
+    } else {
+      Intake.loadData()
+        .then((data) => {
+          if (!data.policy.length) {
+            host.innerHTML = Intake.emptyState("policy-excerpt.md is missing.", "The kit rule book was not found.", "Retry", "policy.html");
+            return;
+          }
+          host.innerHTML = data.policy
+            .map((p) => `<article class="rule-card"><h2>${p.id}</h2><p>${p.text}</p></article>`)
+            .join("");
+        })
+        .catch(() => {
+          host.innerHTML = Intake.emptyState("Could not load the rule book.", "policy-excerpt.md did not load.", "Retry", "policy.html");
+        });
+    }
+  </script>
+</body>
+</html>

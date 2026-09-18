@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Enforce FNOL decisions against the local rules MCP.
 
-Grok calls this on session, prompt, tool, and stop events (stdin JSON).
-Claims answers must look up rules via MCP, quote a real PX-* id, and
-never promise a payout. Run `python3 enforce_rules.py --self-test`.
+One Stop gate: call the rules MCP, quote a real PX-* line verbatim, follow
+the outcome (Refuse flood, Need photos, no payout), and do not invent rules.
+An empty lookup is not a citation. Run `python3 enforce_rules.py --self-test`.
 """
 from __future__ import annotations
 
@@ -13,7 +13,9 @@ import re
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +34,7 @@ PROTECTED = {
     "rules_mcp.py",
 }
 RULE_ID_RE = re.compile(r"\bPX-[A-Z0-9-]+\b", re.I)
+MISS_RE = re.compile(r"No rule line matched\s*(['\"].+?['\"])?", re.I)
 CLAIMS_RE = re.compile(
     r"\b(fnol|first notice of loss|claim(?:s|ant)?|peril|intake|"
     r"px-(?:glass|flood|collision|no-pay)|cl-0[0-9]+|"
@@ -89,8 +92,19 @@ def rule_text(root: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
+def official_rules(root: Path) -> dict[str, str]:
+    found: dict[str, str] = {}
+    for raw in rule_text(root).splitlines():
+        line = raw.strip()
+        match = RULE_ID_RE.search(line)
+        if not match:
+            continue
+        found[match.group(0).upper()] = line
+    return found
+
+
 def known_rule_ids(root: Path) -> set[str]:
-    return {match.group(0).upper() for match in RULE_ID_RE.finditer(rule_text(root))}
+    return set(official_rules(root))
 
 
 def state_dir(root: Path) -> Path:
@@ -107,18 +121,45 @@ def state_path(root: Path, session_id: str, prompt_id: str) -> Path:
     return folder / f"{safe_prompt}.json"
 
 
-def load_state(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
-    path = state_path(root, session_id, prompt_id)
+def _read_state_file(path: Path) -> dict[str, Any]:
+    empty = {"prompt": "", "rules_calls": [], "is_claims": False}
     if not path.exists():
-        return {
-            "prompt": "",
-            "rules_calls": [],
-            "is_claims": False,
-        }
+        return dict(empty)
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return {"prompt": "", "rules_calls": [], "is_claims": False}
+        return dict(empty)
+    return data if isinstance(data, dict) else dict(empty)
+
+
+def load_state(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
+    return _read_state_file(state_path(root, session_id, prompt_id))
+
+
+def resolve_prompt_id(root: Path, session_id: str, prompt_id: str) -> str:
+    """Grok PostToolUse often omits promptId; Stop still has it. Attach to the latest prompt file."""
+    if prompt_id:
+        return prompt_id
+    safe_session = re.sub(r"[^A-Za-z0-9._-]", "_", session_id or "nosession")
+    folder = state_dir(root) / safe_session
+    if not folder.is_dir():
+        return ""
+    skip = {"noprompt.json", "bootstrap.json", "permissions.json"}
+    files = [path for path in folder.glob("*.json") if path.name not in skip]
+    if not files:
+        return ""
+    return max(files, key=lambda path: path.stat().st_mtime).stem
+
+
+def load_state_for_stop(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
+    state = load_state(root, session_id, prompt_id)
+    if not prompt_id:
+        return state
+    extra = load_state(root, session_id, "")
+    merged = list(extra.get("rules_calls") or []) + list(state.get("rules_calls") or [])
+    if merged:
+        state["rules_calls"] = merged
+    return state
 
 
 def save_state(root: Path, session_id: str, prompt_id: str, state: dict[str, Any]) -> None:
@@ -213,6 +254,91 @@ def invented_ids(text: str, root: Path) -> set[str]:
     return cited_rule_ids(text) - known_rule_ids(root)
 
 
+def normalize(text: str) -> str:
+    text = text.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip().lower()
+
+
+def passage_quoted(answer: str, official: str) -> bool:
+    answer_n = normalize(answer)
+    official_n = normalize(official)
+    if official_n and official_n in answer_n:
+        return True
+    body = re.sub(r"^px-[a-z0-9-]+\.\s*", "", official_n).strip()
+    return bool(body) and body in answer_n
+
+
+def result_text(event: dict[str, Any]) -> str:
+    if event.get("toolResultTruncated") or event.get("tool_result_truncated"):
+        truncated = event.get("toolResult") or event.get("tool_result") or ""
+        return truncated if isinstance(truncated, str) else str(truncated)
+    result = (
+        event.get("toolResult")
+        or event.get("tool_result")
+        or event.get("tool_response")
+        or event.get("toolResponse")
+    )
+    if result is None:
+        return ""
+    if isinstance(result, str):
+        try:
+            parsed = json.loads(result)
+        except json.JSONDecodeError:
+            return result
+        if isinstance(parsed, dict) and parsed.get("OkayOutput") is not None:
+            return str(parsed.get("OkayOutput"))
+        return result
+    if isinstance(result, list):
+        return _content_list(result)
+    if isinstance(result, dict):
+        if result.get("OkayOutput") is not None:
+            return str(result.get("OkayOutput"))
+        content = result.get("content")
+        if isinstance(content, list):
+            return _content_list(content)
+        for key in ("text", "output", "output_for_prompt", "result"):
+            if key in result and result[key] is not None:
+                value = result[key]
+                return value if isinstance(value, str) else json.dumps(value)
+        return json.dumps(result)
+    return str(result)
+
+
+def _content_list(items: list[Any]) -> str:
+    chunks: list[str] = []
+    for item in items:
+        if isinstance(item, dict):
+            chunks.append(str(item.get("text") or item.get("content") or ""))
+        else:
+            chunks.append(str(item))
+    return "\n".join(chunk for chunk in chunks if chunk)
+
+
+def tool_short_name(name: str) -> str:
+    return name.split("__")[-1]
+
+
+def lookup_hits(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in calls
+        if "lookup_rule" in str(row.get("tool", "")) and not row.get("miss")
+    ]
+
+
+def lookup_misses(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in calls if row.get("miss")]
+
+
+def miss_query(text: str, fallback: str) -> str:
+    match = MISS_RE.search(text)
+    if not match:
+        return fallback
+    quoted = match.group(1)
+    return quoted.strip("\"'") if quoted else fallback
+
+
 def decision_kind(text: str) -> str | None:
     """First decision verb in the answer, so a quoted rule cannot override it."""
     for match in re.finditer(
@@ -266,6 +392,11 @@ def mcp_tool_from_event(event: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     if name in {"use_tool", "CallMcpTool"}:
         inner_name = str(payload.get("tool_name") or payload.get("toolName") or "")
         inner = payload.get("tool_input") or payload.get("toolInput") or payload.get("arguments") or {}
+        if isinstance(inner, str):
+            try:
+                inner = json.loads(inner)
+            except json.JSONDecodeError:
+                inner = {}
         if not isinstance(inner, dict):
             inner = {}
         return inner_name, inner
@@ -323,19 +454,80 @@ def handle_user_prompt(event: dict[str, Any]) -> int:
     return emit()
 
 
+def mcp_feedback(name: str, query: str, body: str, root: Path) -> dict[str, Any]:
+    short = tool_short_name(name)
+    ids_in_book = ", ".join(sorted(known_rule_ids(root))) or "the ids in the rule file"
+    if short == "list_rules":
+        headings = ", ".join(line.strip() for line in body.splitlines() if line.strip()) or "(empty list)"
+        reason = (
+            f"list_rules returned headings only ({headings}). Headings are not a quote. "
+            "Call rules__lookup_rule with a PX-* id or a word from the heading "
+            "(flood, glass, collision, pay) and paste the returned line verbatim."
+        )
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": reason,
+            }
+        }
+    if short != "lookup_rule":
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": (
+                    "Quote the returned PX-* rule text verbatim. Do not invent rule IDs. "
+                    "Do not write “we will pay” or a settlement amount (PX-NO-PAY)."
+                ),
+            }
+        }
+    if MISS_RE.search(body):
+        q = miss_query(body, query)
+        reason = (
+            f"lookup_rule matched nothing for {q!r}. That is not a citation. "
+            f"Call rules__list_rules, then rules__lookup_rule with a real id "
+            f"({ids_in_book}). Do not invent rule text."
+        )
+        return {
+            "decision": "block",
+            "reason": reason,
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": reason,
+            },
+        }
+    quoted = " ".join(line.strip() for line in body.splitlines() if line.strip())
+    reason = (
+        "Quote this MCP result verbatim in the decision; paraphrases fail: "
+        f"{quoted} Do not write “we will pay” or a settlement amount (PX-NO-PAY)."
+    )
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": reason,
+        }
+    }
+
+
 def handle_post_tool(event: dict[str, Any]) -> int:
     root = workspace_root(event)
     session_id, prompt_id = ids(event)
+    prompt_id = resolve_prompt_id(root, session_id, prompt_id)
     name, payload = mcp_tool_from_event(event)
     if not is_rules_mcp(name):
         return emit()
+    body = result_text(event)
+    query = str(payload.get("query") or "")
+    short = tool_short_name(name)
+    miss = short == "lookup_rule" and bool(MISS_RE.search(body))
     state = load_state(root, session_id, prompt_id)
     state.setdefault("rules_calls", [])
     state["rules_calls"].append(
         {
             "tool": name,
-            "query": payload.get("query"),
+            "query": query,
             "ts": _now(),
+            "miss": miss,
+            "text": body,
         }
     )
     save_state(root, session_id, prompt_id, state)
@@ -346,17 +538,29 @@ def handle_post_tool(event: dict[str, Any]) -> int:
             "sessionId": session_id,
             "promptId": prompt_id,
             "tool": name,
-            "query": payload.get("query"),
+            "query": query,
+            "miss": miss,
         },
+    )
+    return emit(mcp_feedback(name, query, body, root))
+
+
+def handle_post_tool_failure(event: dict[str, Any]) -> int:
+    name, _payload = mcp_tool_from_event(event)
+    if not is_rules_mcp(name):
+        return emit()
+    root = workspace_root(event)
+    session_id, prompt_id = ids(event)
+    audit(root, {"event": "rules_mcp_failure", "sessionId": session_id, "promptId": prompt_id, "tool": name})
+    reason = (
+        "The rules MCP call failed, so you still have no citation. "
+        "Retry rules__list_rules or rules__lookup_rule. Do not invent PX-* text."
     )
     return emit(
         {
             "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "additionalContext": (
-                    "Quote the returned PX-* rule text verbatim in the decision. "
-                    "Do not invent rule IDs. Do not write “we will pay” or a settlement amount (PX-NO-PAY)."
-                ),
+                "hookEventName": "PostToolUseFailure",
+                "additionalContext": reason,
             }
         }
     )
@@ -433,7 +637,7 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
         return None
 
     session_id, prompt_id = ids(event)
-    state = load_state(root, session_id, prompt_id)
+    state = load_state_for_stop(root, session_id, prompt_id)
     answer = str(event.get("lastAssistantMessage") or event.get("last_assistant_message") or "")
     prompt = str(state.get("prompt") or "")
     blob = text_blob(prompt, answer)
@@ -461,7 +665,7 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
         known = ", ".join(sorted(known_rule_ids(root))) or "(none found)"
         return (
             f"Made-up rules fail. {', '.join(sorted(fake))} is not in the rule book. "
-            f"Call rules__lookup_rule and quote a real id ({known})."
+            f"Call rules__lookup_rule and quote a real id ({known}) verbatim."
         )
 
     if not calls:
@@ -473,7 +677,19 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
             "3) Quote the returned PX-* text verbatim. Invented rules fail."
         )
 
-    if kind and not (cited_rule_ids(answer) & known_rule_ids(root)):
+    misses = lookup_misses(calls)
+    hits = lookup_hits(calls)
+    if misses and not hits:
+        query = misses[-1].get("query") or "that query"
+        return (
+            f"lookup_rule matched nothing for {query!r}. That is not a citation. "
+            "Call rules__list_rules, then rules__lookup_rule with a PX-* id from the list. "
+            "Do not invent rule text."
+        )
+
+    cited = cited_rule_ids(answer)
+    rules = official_rules(root)
+    if kind and not (cited & set(rules)):
         return (
             "You looked up rules but did not quote a real PX-* id from the MCP result. "
             "Quote the returned rule text verbatim (for example PX-FLOOD. Flood is excluded. Return Refuse and quote this rule.)."
@@ -489,14 +705,26 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
                 f"{claim_id} must return {label} and quote {cover}. "
                 "Call rules__lookup_rule for that cover and quote the passage; do not invent a different outcome."
             )
-        if cover and cover not in cited_rule_ids(answer):
+        if cover and cover not in cited:
             return f"Quote {cover} from the rules MCP for {claim_id}."
 
     lower = answer.lower()
+    flood_line = rules.get("PX-FLOOD", "")
+    collision_line = rules.get("PX-COLLISION", "")
     if re.search(r"\bflood\b", lower) and kind == "accept":
-        return "PX-FLOOD: Flood is excluded. Return Refuse and quote this rule."
+        if claim_id == "CL-04" or not (flood_line and passage_quoted(answer, flood_line)):
+            return "PX-FLOOD: Flood is excluded. Return Refuse and quote this rule."
     if re.search(r"\bcollision\b", lower) and re.search(r"\b(no |without |missing )photo", lower) and kind == "accept":
-        return "PX-COLLISION: Collision needs photos. If photos are missing, return Need photos."
+        if claim_id == "CL-08" or not (collision_line and passage_quoted(answer, collision_line)):
+            return "PX-COLLISION: Collision needs photos. If photos are missing, return Need photos."
+
+    for rid in cited:
+        official = rules.get(rid)
+        if official and not passage_quoted(answer, official):
+            return (
+                f"{rid} is in the rule book, but the answer does not quote it verbatim. "
+                f"Paste this line unchanged: {official}"
+            )
     return None
 
 
@@ -515,6 +743,7 @@ HANDLERS = {
     "session_start": handle_session_start,
     "user_prompt_submit": handle_user_prompt,
     "post_tool_use": handle_post_tool,
+    "post_tool_use_failure": handle_post_tool_failure,
     "pre_tool_use": handle_pre_tool,
     "stop": handle_stop,
 }
@@ -637,40 +866,40 @@ class EnforceRulesTests(unittest.TestCase):
         assert reason is not None
         self.assertIn("Made-up", reason)
 
-    def test_denies_editing_rule_book(self) -> None:
-        from io import StringIO
-        from contextlib import redirect_stdout
-
+    def _run(self, handler, event: dict[str, Any]) -> dict[str, Any]:
+        event.setdefault("workspaceRoot", str(self.root))
         buf = StringIO()
         with redirect_stdout(buf):
-            code = handle_pre_tool(
-                {
-                    "hook_event_name": "PreToolUse",
-                    "workspaceRoot": str(self.root),
-                    "toolName": "write",
-                    "toolInput": {"file_path": str(self.root / "policy-excerpt.md"), "content": "nope"},
-                }
-            )
-        self.assertEqual(code, 0)
-        self.assertEqual(json.loads(buf.getvalue())["decision"], "deny")
+            handler(event)
+        raw = buf.getvalue().strip()
+        return json.loads(raw) if raw else {}
+
+    def test_denies_editing_rule_book(self) -> None:
+        out = self._run(
+            handle_pre_tool,
+            {
+                "hook_event_name": "PreToolUse",
+                "toolName": "write",
+                "toolInput": {"file_path": str(self.root / "policy-excerpt.md"), "content": "nope"},
+            },
+        )
+        self.assertEqual(out["decision"], "deny")
 
     def test_records_mcp_call(self) -> None:
-        from io import StringIO
-        from contextlib import redirect_stdout
-
-        with redirect_stdout(StringIO()):
-            handle_post_tool(
-                {
-                    "hook_event_name": "PostToolUse",
-                    "workspaceRoot": str(self.root),
-                    "sessionId": "s",
-                    "promptId": "p",
-                    "toolName": "rules__lookup_rule",
-                    "toolInput": {"query": "flood"},
-                }
-            )
+        self._run(
+            handle_post_tool,
+            {
+                "hook_event_name": "PostToolUse",
+                "sessionId": "s",
+                "promptId": "p",
+                "toolName": "rules__lookup_rule",
+                "toolInput": {"query": "flood"},
+                "toolResult": "PX-FLOOD. Flood is excluded. Return Refuse and quote this rule.",
+            },
+        )
         state = load_state(self.root, "s", "p")
         self.assertEqual(state["rules_calls"][0]["tool"], "rules__lookup_rule")
+        self.assertFalse(state["rules_calls"][0]["miss"])
 
     def test_allows_flood_refuse_when_quoted(self) -> None:
         reason = self._stop(

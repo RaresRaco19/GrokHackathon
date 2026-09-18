@@ -33,6 +33,18 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "rules__|use_tool|CallMcpTool",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "scripts/enforce_rules.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "write|Write|Edit|search_replace|Bash|run_terminal_command",

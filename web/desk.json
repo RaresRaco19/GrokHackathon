@@ -1,0 +1,103 @@
+{
+  "updated_at": "2026-09-18T12:00:00Z",
+  "kpis": {
+    "reports_in_queue": 3,
+    "rules_in_force": 4,
+    "photos_on_file": 2
+  },
+  "policy": [
+    {
+      "id": "PX-GLASS",
+      "text": "PX-GLASS. Glass breakage is in force when photos are on the file. Accept for intake. Do not promise a payout."
+    },
+    {
+      "id": "PX-FLOOD",
+      "text": "PX-FLOOD. Flood is excluded. Return Refuse and quote this rule."
+    },
+    {
+      "id": "PX-COLLISION",
+      "text": "PX-COLLISION. Collision needs photos. If photos are missing, return Need photos."
+    },
+    {
+      "id": "PX-NO-PAY",
+      "text": "PX-NO-PAY. Never write “we will pay” or name a settlement amount."
+    }
+  ],
+  "reports": [
+    {
+      "id": "CL-03",
+      "peril": "glass",
+      "photos": true,
+      "cover": "PX-GLASS",
+      "decision": "open",
+      "quote": "PX-GLASS. Glass breakage is in force when photos are on the file. Accept for intake. Do not promise a payout.",
+      "send_state": "draft",
+      "claim_number": null,
+      "can_confirm": true,
+      "can_undo": false,
+      "received_at": "2026-09-18T09:14:00Z",
+      "photo": "assets/glass.jpg",
+      "photo_alt": "Spiderweb crack across a car windshield, viewed from the passenger seat.",
+      "prompt": "Windshield on a 2019 hatchback, photos already in the file. Open for intake if the glass line is in force. Do not name a payout.",
+      "score_items": [
+        { "text": "Photos are on the file", "passed": true, "importance": "high" },
+        { "text": "Cover is PX-GLASS", "passed": true, "importance": "high" },
+        { "text": "Quote is the PX-GLASS line", "passed": true, "importance": "high" },
+        { "text": "No payout language", "passed": true, "importance": "high" },
+        { "text": "Claim number minted", "passed": false, "importance": "low" }
+      ]
+    },
+    {
+      "id": "CL-04",
+      "peril": "flood",
+      "photos": true,
+      "cover": "PX-FLOOD",
+      "decision": "refuse",
+      "quote": "PX-FLOOD. Flood is excluded. Return Refuse and quote this rule.",
+      "send_state": "logged",
+      "claim_number": null,
+      "can_confirm": false,
+      "can_undo": false,
+      "received_at": "2026-09-18T09:31:00Z",
+      "photo": "assets/flood.jpg",
+      "photo_alt": "Silver sedan in knee-deep floodwater on a residential street.",
+      "prompt": "Sedan sitting in floodwater after overnight rain. Photos are on the file. Flood is excluded — refuse and quote the line.",
+      "score_items": [
+        { "text": "Peril is flood", "passed": true, "importance": "high" },
+        { "text": "Quote is the PX-FLOOD line", "passed": true, "importance": "high" },
+        { "text": "Confirm is blocked", "passed": true, "importance": "high" },
+        { "text": "Logged, not sent", "passed": true, "importance": "high" }
+      ]
+    },
+    {
+      "id": "CL-08",
+      "peril": "collision",
+      "photos": false,
+      "cover": "PX-COLLISION",
+      "decision": "hold",
+      "quote": "PX-COLLISION. Collision needs photos. If photos are missing, return Need photos.",
+      "send_state": "draft",
+      "claim_number": null,
+      "can_confirm": false,
+      "can_undo": false,
+      "received_at": "2026-09-18T10:02:00Z",
+      "photo": "assets/collision.jpg",
+      "photo_alt": "Silver hatchback with a crumpled rear bumper in an empty parking lot.",
+      "prompt": "Rear bumper crumpled in a parking lot. No photos on the file yet. Hold until photos arrive. Do not open.",
+      "score_items": [
+        { "text": "Cover is PX-COLLISION", "passed": true, "importance": "high" },
+        { "text": "Photos are on the file", "passed": false, "importance": "high" },
+        { "text": "Quote is the PX-COLLISION line", "passed": true, "importance": "high" },
+        { "text": "Decision is hold", "passed": true, "importance": "high" }
+      ]
+    }
+  ],
+  "log": [
+    {
+      "ts": "2026-09-18T09:31:12Z",
+      "id": "CL-04",
+      "event": "refuse_logged",
+      "detail": "PX-FLOOD"
+    }
+  ]
+}

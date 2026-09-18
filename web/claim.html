@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Report — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <div class="page-head">
+      <a class="back" href="queue.html">All reports</a>
+      <div data-head></div>
+    </div>
+    <div class="claim-grid" data-body></div>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    const id = Intake.params().get("id") || "CL-03";
+
+    function reason(r) {
+      if (r.decision === "refuse") return "Refuse is not sent";
+      if (r.decision === "hold") return "Hold waits for photos";
+      return "";
+    }
+
+    function paint(r) {
+      document.title = `${r.id} — Intake Desk`;
+      Intake.mountShell({
+        current: "queue",
+        cta: {
+          href: "#confirm",
+          label: "Confirm",
+          disabled: !r.can_confirm,
+          title: r.can_confirm ? "Mint a claim number" : reason(r),
+        },
+      });
+      document.querySelector("[data-head]").innerHTML = `<h1>${r.id} ${Intake.badge(r.decision)}</h1>`;
+      document.querySelector("[data-body]").innerHTML = `
+        <div>
+          <img class="claim-photo" src="${r.photo}" alt="${r.photo_alt}" />
+          <dl class="facts">
+            <dt>Report</dt><dd class="numeric">${r.id}</dd>
+            <dt>Peril</dt><dd>${r.peril}</dd>
+            <dt>Photos</dt><dd>${Intake.photosLabel(r.photos)}</dd>
+            <dt>Cover</dt><dd class="numeric">${r.cover}</dd>
+            <dt>Decision</dt><dd>${Intake.badge(r.decision)}</dd>
+            <dt>Send state</dt><dd>${r.send_state}</dd>
+            <dt>Claim number</dt><dd class="numeric">${r.claim_number || "—"}</dd>
+            <dt>Received</dt><dd><time datetime="${r.received_at}" title="${Intake.absolute(r.received_at)}">${Intake.absolute(r.received_at)}</time></dd>
+          </dl>
+          <p class="score-meta">Quoted from policy-excerpt.md</p>
+          <blockquote class="quote">${r.quote}</blockquote>
+          <p>Confirm is the only way a claim number is minted. Refuse cannot be sent. Undo restores draft.</p>
+          <div class="claim-actions">
+            <button class="btn btn-primary" type="button" data-confirm ${r.can_confirm ? "" : "disabled"} title="${reason(r)}">Confirm</button>
+            ${r.can_undo ? '<button class="btn btn-ghost" type="button" data-undo>Undo</button>' : ""}
+          </div>
+        </div>
+        <div>${Intake.scoreCard(r)}</div>`;
+      document.querySelector("[data-confirm]").addEventListener("click", () => {
+        Intake.confirmReport(r.id).then((next) => {
+          document.body.querySelector(".topbar")?.remove();
+          document.body.querySelector(".drawer")?.remove();
+          document.body.querySelector("dialog")?.remove();
+          paint(next);
+        });
+      });
+      const undo = document.querySelector("[data-undo]");
+      if (r.can_undo) {
+        undo.addEventListener("click", () => {
+          Intake.undoReport(r.id).then((data) => {
+            const next = data.all.find((x) => x.id === r.id);
+            document.body.querySelector(".topbar")?.remove();
+            document.body.querySelector(".drawer")?.remove();
+            document.body.querySelector("dialog")?.remove();
+            paint(next);
+          });
+        });
+      }
+      const cta = document.querySelector("[data-cta]");
+      cta.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (r.can_confirm) document.querySelector("[data-confirm]").click();
+      });
+    }
+
+    if (Intake.demoState() === "error") {
+      Intake.mountShell({ current: "queue" });
+      document.querySelector("[data-body]").innerHTML = Intake.emptyState("Could not load this report.", "Retry the file.", "Retry", "claim.html?id=" + id);
+    } else {
+      Intake.loadData()
+        .then((data) => {
+          const r = data.all.find((x) => x.id === id);
+          if (!r) {
+            Intake.mountShell({ current: "queue" });
+            document.querySelector("[data-body]").innerHTML = Intake.emptyState(
+              "No report " + id + " in fnol.json.",
+              "The kit only has CL-03, CL-04, and CL-08.",
+              "Back to queue",
+              "queue.html"
+            );
+            return;
+          }
+          paint(r);
+        })
+        .catch(() => {
+          Intake.mountShell({ current: "queue" });
+          document.querySelector("[data-body]").innerHTML = Intake.emptyState("Could not load this report.", "Retry the file.", "Retry", "claim.html?id=" + id);
+        });
+    }
+  </script>
+</body>
+</html>
