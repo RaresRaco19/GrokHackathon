@@ -25,9 +25,10 @@ Decide intake: open, hold, or refuse. Never a payout. Do not invent rules.
 3. Identify the report id (CL-03 / CL-04 / CL-08). Read that object in `data/fnol.json`.
 4. Call MCP `lookup_rule` on the cover id and peril (`PX-GLASS`, `PX-FLOOD`, `PX-COLLISION`, `flood`, `glass`, `photos`). Use server `rules`. If the tool is missing, say the MCP is not registered and stop inventing text.
 5. Decide in this order, quoting the **exact** matching line from the tool result:
+   - Cover id is not in `md/policy-excerpt.md` → say `No rule line matched`. Do not mint a rule id.
    - Cover is PX-FLOOD → **refuse**, PX-FLOOD (photos true does not override)
-   - Photos missing → **hold** (display "hold for photos"), cite the cover id (CL-08 / PX-COLLISION)
-   - Cover is PX-GLASS and photos present → **open**, PX-GLASS
+   - Photos false → **hold** (display "hold for photos"), cite the cover id (CL-08 / PX-COLLISION)
+   - Cover is PX-GLASS and photos true → **open**, PX-GLASS
    - No matching line → say `No rule line matched`. Do not mint a rule id.
 6. Answer with: decision, rule id, quoted line. Do not add claimant names, vehicles, or payout amounts.
 

@@ -51,12 +51,9 @@ def main() -> None:
     if not isinstance(tool_input, dict):
         tool_input = {}
 
-    blobs = _paths_from(tool_input)
-    new_string = tool_input.get("new_string") or tool_input.get("content") or ""
-    if isinstance(new_string, str):
-        blobs.append(new_string)
-
-    haystack = "\n".join(blobs)
+    # Paths and shell command only. Scanning content/new_string would deny
+    # a real Write of AGENTS.md / decide.py / SKILL.md that cites the excerpt.
+    haystack = "\n".join(_paths_from(tool_input))
     if _mentions_rule_book(haystack):
         print(
             json.dumps(

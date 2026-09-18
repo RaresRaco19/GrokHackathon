@@ -12,6 +12,7 @@ from python import decide
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "python" / "decide.py"
+HOOK = ROOT / "python" / "protect_rules.py"
 POLICY = (ROOT / "md" / "policy-excerpt.md").read_text(encoding="utf-8")
 
 EXPECTED = {
@@ -190,3 +191,38 @@ class DeskGoldenTests(unittest.TestCase):
         self.assertIn("refuse", completed.stdout)
         self.assertIn("PX-FLOOD.", completed.stdout)
         self.assertIn("photos=True", completed.stdout)
+
+
+def run_hook(event: dict) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(HOOK)],
+        cwd=ROOT,
+        input=json.dumps(event),
+        capture_output=True,
+        text=True,
+    )
+
+
+class ProtectRulesHookTests(unittest.TestCase):
+    def test_write_policy_excerpt_is_denied(self) -> None:
+        completed = run_hook(
+            {"toolInput": {"file_path": "md/policy-excerpt.md", "content": "nope"}}
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(json.loads(completed.stdout)["decision"], "deny")
+
+    def test_write_decide_py_with_policy_mention_is_allowed(self) -> None:
+        body = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("policy-excerpt.md", body)
+        completed = run_hook(
+            {"toolInput": {"file_path": "python/decide.py", "content": body}}
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(json.loads(completed.stdout)["decision"], "allow")
+
+    def test_extra_rule_book_path_is_denied(self) -> None:
+        completed = run_hook(
+            {"toolInput": {"file_path": "payer_rules.md", "content": "nope"}}
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(json.loads(completed.stdout)["decision"], "deny")
