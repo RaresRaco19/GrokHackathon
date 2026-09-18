@@ -121,18 +121,45 @@ def state_path(root: Path, session_id: str, prompt_id: str) -> Path:
     return folder / f"{safe_prompt}.json"
 
 
-def load_state(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
-    path = state_path(root, session_id, prompt_id)
+def _read_state_file(path: Path) -> dict[str, Any]:
+    empty = {"prompt": "", "rules_calls": [], "is_claims": False}
     if not path.exists():
-        return {
-            "prompt": "",
-            "rules_calls": [],
-            "is_claims": False,
-        }
+        return dict(empty)
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return {"prompt": "", "rules_calls": [], "is_claims": False}
+        return dict(empty)
+    return data if isinstance(data, dict) else dict(empty)
+
+
+def load_state(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
+    return _read_state_file(state_path(root, session_id, prompt_id))
+
+
+def resolve_prompt_id(root: Path, session_id: str, prompt_id: str) -> str:
+    """Grok PostToolUse often omits promptId; Stop still has it. Attach to the latest prompt file."""
+    if prompt_id:
+        return prompt_id
+    safe_session = re.sub(r"[^A-Za-z0-9._-]", "_", session_id or "nosession")
+    folder = state_dir(root) / safe_session
+    if not folder.is_dir():
+        return ""
+    skip = {"noprompt.json", "bootstrap.json", "permissions.json"}
+    files = [path for path in folder.glob("*.json") if path.name not in skip]
+    if not files:
+        return ""
+    return max(files, key=lambda path: path.stat().st_mtime).stem
+
+
+def load_state_for_stop(root: Path, session_id: str, prompt_id: str) -> dict[str, Any]:
+    state = load_state(root, session_id, prompt_id)
+    if not prompt_id:
+        return state
+    extra = load_state(root, session_id, "")
+    merged = list(extra.get("rules_calls") or []) + list(state.get("rules_calls") or [])
+    if merged:
+        state["rules_calls"] = merged
+    return state
 
 
 def save_state(root: Path, session_id: str, prompt_id: str, state: dict[str, Any]) -> None:
@@ -255,10 +282,18 @@ def result_text(event: dict[str, Any]) -> str:
     if result is None:
         return ""
     if isinstance(result, str):
+        try:
+            parsed = json.loads(result)
+        except json.JSONDecodeError:
+            return result
+        if isinstance(parsed, dict) and parsed.get("OkayOutput") is not None:
+            return str(parsed.get("OkayOutput"))
         return result
     if isinstance(result, list):
         return _content_list(result)
     if isinstance(result, dict):
+        if result.get("OkayOutput") is not None:
+            return str(result.get("OkayOutput"))
         content = result.get("content")
         if isinstance(content, list):
             return _content_list(content)
@@ -357,6 +392,11 @@ def mcp_tool_from_event(event: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     if name in {"use_tool", "CallMcpTool"}:
         inner_name = str(payload.get("tool_name") or payload.get("toolName") or "")
         inner = payload.get("tool_input") or payload.get("toolInput") or payload.get("arguments") or {}
+        if isinstance(inner, str):
+            try:
+                inner = json.loads(inner)
+            except json.JSONDecodeError:
+                inner = {}
         if not isinstance(inner, dict):
             inner = {}
         return inner_name, inner
@@ -471,6 +511,7 @@ def mcp_feedback(name: str, query: str, body: str, root: Path) -> dict[str, Any]
 def handle_post_tool(event: dict[str, Any]) -> int:
     root = workspace_root(event)
     session_id, prompt_id = ids(event)
+    prompt_id = resolve_prompt_id(root, session_id, prompt_id)
     name, payload = mcp_tool_from_event(event)
     if not is_rules_mcp(name):
         return emit()
@@ -583,7 +624,7 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
         return None
 
     session_id, prompt_id = ids(event)
-    state = load_state(root, session_id, prompt_id)
+    state = load_state_for_stop(root, session_id, prompt_id)
     answer = str(event.get("lastAssistantMessage") or event.get("last_assistant_message") or "")
     prompt = str(state.get("prompt") or "")
     blob = text_blob(prompt, answer)
@@ -655,10 +696,14 @@ def stop_reason(event: dict[str, Any], root: Path) -> str | None:
             return f"Quote {cover} from the rules MCP for {claim_id}."
 
     lower = answer.lower()
+    flood_line = rules.get("PX-FLOOD", "")
+    collision_line = rules.get("PX-COLLISION", "")
     if re.search(r"\bflood\b", lower) and kind == "accept":
-        return "PX-FLOOD: Flood is excluded. Return Refuse and quote this rule."
+        if claim_id == "CL-04" or not (flood_line and passage_quoted(answer, flood_line)):
+            return "PX-FLOOD: Flood is excluded. Return Refuse and quote this rule."
     if re.search(r"\bcollision\b", lower) and re.search(r"\b(no |without |missing )photo", lower) and kind == "accept":
-        return "PX-COLLISION: Collision needs photos. If photos are missing, return Need photos."
+        if claim_id == "CL-08" or not (collision_line and passage_quoted(answer, collision_line)):
+            return "PX-COLLISION: Collision needs photos. If photos are missing, return Need photos."
 
     for rid in cited:
         official = rules.get(rid)
@@ -902,6 +947,42 @@ class EnforceRulesTests(unittest.TestCase):
         self.assertIsNotNone(reason)
         assert reason is not None
         self.assertIn("not a citation", reason)
+
+    def test_stop_sees_mcp_calls_recorded_without_prompt_id(self) -> None:
+        save_state(
+            self.root,
+            "s",
+            "p",
+            {"prompt": "Intake CL-03 glass with photos", "rules_calls": [], "is_claims": True},
+        )
+        self._run(
+            handle_post_tool,
+            {
+                "hook_event_name": "PostToolUse",
+                "sessionId": "s",
+                "promptId": "",
+                "toolName": "use_tool",
+                "toolInput": {
+                    "tool_name": "rules__lookup_rule",
+                    "tool_input": {"query": "glass"},
+                },
+                "toolResult": '{"OkayOutput": "PX-GLASS. Glass breakage is in force when photos are on the file. Accept for intake. Do not promise a payout."}',
+            },
+        )
+        reason = stop_reason(
+            {
+                "reason": "end_turn",
+                "sessionId": "s",
+                "promptId": "p",
+                "lastAssistantMessage": (
+                    "Accept for intake. PX-GLASS. Glass breakage is in force when photos "
+                    "are on the file. Accept for intake. Do not promise a payout."
+                ),
+                "workspaceRoot": str(self.root),
+            },
+            self.root,
+        )
+        self.assertIsNone(reason)
 
     def test_mcp_failure_asks_for_retry(self) -> None:
         out = self._run(
