@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claim intake — conceptual architecture</title>
+  <style>
+    :root {
+      --ink: #0c100e;
+      --paper: #141a16;
+      --paper-2: #1b231e;
+      --line: #2c362f;
+      --text: #e7eee8;
+      --muted: #8d978f;
+      --brass: #c9a56a;
+      --brass-dim: rgba(201, 165, 106, 0.16);
+      --open: #3ea572;
+      --hold: #d4a017;
+      --refuse: #c45c4a;
+      --rule: #6ea8c9;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(201, 165, 106, 0.08), transparent 50%),
+        radial-gradient(900px 400px at 100% 0%, rgba(62, 165, 114, 0.06), transparent 45%),
+        var(--ink);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 80px; }
+
+    header.hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: end;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 28px;
+      margin-bottom: 36px;
+    }
+    .kicker {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--brass);
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 500;
+      font-size: clamp(32px, 5vw, 52px);
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin: 0 0 12px;
+    }
+    .lede { color: var(--muted); max-width: 62ch; margin: 0; font-size: 16px; }
+    .badge {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      padding: 14px 16px;
+      border-radius: 12px;
+      min-width: 220px;
+      box-shadow: var(--shadow);
+    }
+    .badge b { display: block; color: var(--brass); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .badge span { color: var(--muted); font-size: 13px; }
+
+    h2 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      font-weight: 500;
+      margin: 0 0 14px;
+    }
+    h3 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass); margin: 0 0 10px; }
+
+    .section { margin: 42px 0; }
+
+    .diagram {
+      background: linear-gradient(180deg, var(--paper), var(--paper-2));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px 24px 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .lane {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .lane.clients { grid-template-columns: 1fr 1fr 1fr; }
+    .lane.brains { grid-template-columns: 1fr 1fr; }
+    .lane.core { grid-template-columns: 1fr; }
+    .lane.rule { grid-template-columns: 1fr; }
+
+    .card {
+      background: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 16px 14px;
+      position: relative;
+    }
+    .card.accent { border-color: rgba(201, 165, 106, 0.45); background: linear-gradient(180deg, var(--brass-dim), var(--ink)); }
+    .card.rule { border-color: rgba(110, 168, 201, 0.45); }
+    .card .who { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+    .card .name { font-size: 18px; margin: 4px 0 6px; }
+    .card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+    .card code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; color: var(--brass); }
+
+    .arrow {
+      display: flex;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 6px 0 14px;
+      position: relative;
+    }
+    .arrow::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(var(--brass), transparent);
+      opacity: 0.7;
+    }
+    .arrow span {
+      background: var(--paper);
+      padding: 0 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    ol.flow {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+    ol.flow li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    ol.flow li:last-child { border-bottom: 0; }
+    ol.flow li::before {
+      content: counter(step);
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--brass);
+      color: var(--brass);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      margin-top: 1px;
+    }
+    ol.flow strong { color: var(--text); }
+    ol.flow span { color: var(--muted); font-size: 13.5px; display: block; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .open { background: rgba(62, 165, 114, 0.16); color: var(--open); }
+    .hold { background: rgba(212, 160, 23, 0.16); color: var(--hold); }
+    .refuse { background: rgba(196, 92, 74, 0.16); color: var(--refuse); }
+
+    .api {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 8px 14px;
+      font-size: 13.5px;
+    }
+    .verb {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--brass);
+      padding-top: 2px;
+    }
+    .api p { margin: 0; color: var(--muted); }
+    .api code { color: var(--text); }
+
+    .guard {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .guard .card { min-height: 108px; }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 12.5px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    @media (max-width: 860px) {
+      header.hero, .lane.clients, .lane.brains, .grid-2, .grid-3, .guard {
+        grid-template-columns: 1fr;
+      }
+      .badge { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div>
+        <p class="kicker">Module 4.3 · claim intake</p>
+        <h1>Conceptual architecture</h1>
+        <p class="lede">Grok assesses every inquiry and must call the rules MCP. Incoming damage reports become <b style="color:var(--text); font-weight:600">open</b>, <b style="color:var(--text); font-weight:600">hold for photos</b>, or <b style="color:var(--text); font-weight:600">refuse</b>. Python hosts the tools and checks the receipt. Nobody names a payout.</p>
+      </div>
+      <div class="badge">
+        <b>Invariant</b>
+        <span>lookup_rule on every inquiry. Confirm is the only mint. Kit stays at repo root.</span>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2>System context</h2>
+      <div class="diagram">
+        <div class="lane clients">
+          <article class="card">
+            <div class="who">Input</div>
+            <div class="name">FNOL reports</div>
+            <p><code>fnol.json</code> · CL-03 glass, CL-04 flood, CL-08 collision. Keys: id, peril, photos, cover.</p>
+          </article>
+          <article class="card">
+            <div class="who">Input</div>
+            <div class="name">Client question</div>
+            <p>Ad-hoc intake ask, e.g. “will we pay?”. Off-desk medical/legal is refused without a made-up rule.</p>
+          </article>
+          <article class="card">
+            <div class="who">Later</div>
+            <div class="name">Colleague frontend</div>
+            <p>Consumes JSON on <code>127.0.0.1:8788</code>. Not in this package. CORS is already open.</p>
+          </article>
+        </div>
+        <div class="arrow"><span>same clerk, two runtimes</span></div>
+        <div class="lane brains">
+          <article class="card accent">
+            <div class="who">Interactive · Grok Build</div>
+            <div class="name">Intake clerk agent</div>
+            <p><code>AGENTS.md</code> + <code>/review-fnol</code>. Calls <code>rules__lookup_rule</code> before every decision. Does not mint <code>FNOL-…</code>.</p>
+          </article>
+          <article class="card accent">
+            <div class="who">HTTP · SpaceXAI grok-4.6</div>
+            <div class="name">backend.agent tool loop</div>
+            <p><code>POST /api/assess</code> runs Grok with tools <code>lookup_rule</code> / <code>list_rules</code>. Python executes them on local MCP. Not an if/else policy engine.</p>
+          </article>
+        </div>
+        <div class="arrow"><span>model requests a tool · we run it locally</span></div>
+        <div class="lane core">
+          <article class="card">
+            <div class="who">JSON-RPC stdin/stdout</div>
+            <div class="name">rules MCP · <span class="mono">rules_mcp.py</span></div>
+            <p>Tools: <code>lookup_rule(query)</code> and <code>list_rules</code>. Miss returns <code>No rule line matched</code>. Registered as <code>python3 rules_mcp.py</code>.</p>
+          </article>
+        </div>
+        <div class="arrow"><span>only rule file</span></div>
+        <div class="lane rule">
+          <article class="card rule">
+            <div class="who">Ground truth</div>
+            <div class="name">policy-excerpt.md</div>
+            <p>PX-GLASS · PX-FLOOD · PX-COLLISION · PX-NO-PAY. Hook denies edits and extra <code>*rules.md</code> books.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div class="panel">
+        <h2>Assess path</h2>
+        <p style="color:var(--muted); margin:0 0 16px; font-size:14px;">The model decides. Python only runs tools and rejects illegal output (no MCP call, invented PX-*, payout amount).</p>
+        <ol class="flow">
+          <li><div><strong>Load inquiry</strong><span>Report from fnol.json and/or a free-text question. Prompt from AGENTS.md.</span></div></li>
+          <li><div><strong>Grok tool loop</strong><span>First turn tool_choice=required. lookup_rule / list_rules execute on local MCP.</span></div></li>
+          <li><div><strong>MCP passages return to Grok</strong><span>The quote must be a verbatim lookup_rule line. Policy is not stuffed into the prompt.</span></div></li>
+          <li><div><strong>JSON decision</strong><span>open / hold / refuse + rule_id + quote. Guidance: flood refuse, no photos hold, glass+photos open, “will we pay?” PX-NO-PAY.</span></div></li>
+          <li><div><strong>Validator gate</strong><span>MCP was called, quote ⊆ tool result, known PX-*, no $ amount. Repair once, else 502.</span></div></li>
+          <li><div><strong>Cache + live-ops</strong><span>GET /api/queue does not call Grok. Confirm is still a human click.</span></div></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>Live-ops</h2>
+        <p style="color:var(--muted); margin:0 0 16px; font-size:14px;">Who clicks before it sends: a human on <code style="color:var(--brass)">POST /api/confirm</code>. The agent stops at the decision block.</p>
+        <div class="api">
+          <div class="verb">GET</div><p><code>/api/queue</code> — cached decisions only. Does not call Grok. <code>needs_assess</code> until POST assess.</p>
+          <div class="verb">POST</div><p><code>/api/assess</code> — Grok + MCP tools. Logs refuse once.</p>
+          <div class="verb">POST</div><p><code>/api/confirm</code> — mints <code>FNOL-{id}-{UTC}</code> on <span class="pill open">open</span> only. CL-04 → 400 <code>refuse is not sent</code>.</p>
+          <div class="verb">POST</div><p><code>/api/undo</code> — restore draft, clear claim number.</p>
+          <div class="verb">GET</div><p><code>/api/log</code> — JSONL. No amount, payout, or $ keys.</p>
+          <div class="verb">GET</div><p><code>/api/health</code> — MCP reachable via list_rules.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Golden cases</h2>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr><th>Id</th><th>Facts</th><th>Decision</th><th>Cited line</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">CL-03</td>
+              <td>glass · photos true · PX-GLASS</td>
+              <td><span class="pill open">open</span></td>
+              <td>PX-GLASS. Glass breakage is in force when photos are on the file…</td>
+            </tr>
+            <tr>
+              <td class="mono">CL-04</td>
+              <td>flood · photos true · PX-FLOOD</td>
+              <td><span class="pill refuse">refuse</span></td>
+              <td>PX-FLOOD. Flood is excluded. Return Refuse and quote this rule.</td>
+            </tr>
+            <tr>
+              <td class="mono">CL-08</td>
+              <td>collision · photos false · PX-COLLISION</td>
+              <td><span class="pill hold">hold</span></td>
+              <td>PX-COLLISION. Collision needs photos. If photos are missing, return Need photos.</td>
+            </tr>
+            <tr>
+              <td class="mono">question</td>
+              <td>“will we pay?”</td>
+              <td><span class="pill refuse">refuse</span></td>
+              <td>PX-NO-PAY. Never write “we will pay” or name a settlement amount.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Guardrails</h2>
+      <div class="guard">
+        <article class="card">
+          <div class="who">Prompt</div>
+          <div class="name">AGENTS.md</div>
+          <p>MCP before decide. Structured block. Scope fence on payout, medical, legal. Stop before mint.</p>
+        </article>
+        <article class="card">
+          <div class="who">Skill</div>
+          <div class="name">/review-fnol</div>
+          <p>Walks fnol.json, one rules__lookup_rule per row, same JSON decision contract as the API.</p>
+        </article>
+        <article class="card">
+          <div class="who">Hook</div>
+          <div class="name">enforce_rules.py</div>
+          <p>Stop-blocks skip-MCP, invented PX-* ids, payout promises. Denies edits to the excerpt and extra rule books. Treats open/hold as aliases of accept / need photos.</p>
+        </article>
+        <article class="card">
+          <div class="who">Validator</div>
+          <div class="name">PX-NO-PAY on output</div>
+          <p>Does not re-derive flood/glass. Rejects skip-MCP, invented ids, and $ + digits / “we will pay” outside the quote.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Portable layout</h2>
+      <div class="grid-3">
+        <article class="panel">
+          <h3>Stays at root</h3>
+          <p class="lede" style="max-width:none">fnol.json · policy-excerpt.md · rules_mcp.py · .grok/config.toml</p>
+        </article>
+        <article class="panel">
+          <h3>Moves as a unit</h3>
+          <p class="lede" style="max-width:none">backend/ — agent (Grok tool loop), mcp_client, assess, store, serve</p>
+        </article>
+        <article class="panel">
+          <h3>Not this repo</h3>
+          <p class="lede" style="max-width:none">No web UI. No cloud LLM call. Frontend arrives later.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      Claim intake desk · open / hold / refuse · quote the excerpt · never a payout.
+      Run <span class="mono">python -m backend.serve</span> for the API, or <span class="mono">/review-fnol</span> in Grok Build.
+    </footer>
+  </div>
+</body>
+</html>

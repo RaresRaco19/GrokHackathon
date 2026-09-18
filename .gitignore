@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+var/*.json
+var/*.jsonl
+.grok/hooks/.state/
+.env
+

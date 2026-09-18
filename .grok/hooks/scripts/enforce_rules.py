@@ -216,12 +216,12 @@ def invented_ids(text: str, root: Path) -> set[str]:
 def decision_kind(text: str) -> str | None:
     """First decision verb in the answer, so a quoted rule cannot override it."""
     for match in re.finditer(
-        r"\bneed photos\b|\brefuse(?:d|al)?\b|\baccept(?:ed|ing)?\b",
+        r"\bneed photos\b|\bhold(?: for photos)?\b|\brefuse(?:d|al)?\b|\baccept(?:ed|ing)?\b|\bopen\b",
         text,
         re.I,
     ):
         token = match.group(0).lower()
-        if token.startswith("need"):
+        if token.startswith("need") or token.startswith("hold"):
             return "need_photos"
         if token.startswith("refuse"):
             return "refuse"
@@ -372,8 +372,21 @@ def handle_pre_tool(event: dict[str, Any]) -> int:
     combined = text_blob(path, body, command)
 
     protected_hit = name in PROTECTED or Path(path).name in PROTECTED
+    extra_rule_book = bool(name) and name.lower().endswith("rules.md")
     if command and re.search(r"\b(rm|mv|sed|truncate)\b", command):
         protected_hit = protected_hit or any(item in command for item in PROTECTED)
+        extra_rule_book = extra_rule_book or bool(re.search(r"[^\s/\\]+rules\.md", command, re.I))
+    if extra_rule_book:
+        audit(root, {"event": "deny_extra_rules", "path": path, "tool": tool_name(event)})
+        return emit(
+            {
+                "decision": "deny",
+                "reason": (
+                    "Extra rule books are blocked. The only rule source is "
+                    "policy-excerpt.md via the rules MCP (rules__lookup_rule)."
+                ),
+            }
+        )
     if protected_hit:
         label = name or "the rule book"
         audit(root, {"event": "deny_protected", "path": path, "tool": tool_name(event)})
@@ -586,6 +599,14 @@ class EnforceRulesTests(unittest.TestCase):
         )
         self.assertIsNone(reason)
 
+    def test_allows_glass_open_alias(self) -> None:
+        reason = self._stop(
+            "Intake CL-03 glass with photos",
+            "open. PX-GLASS. Glass breakage is in force when photos are on the file. Accept for intake. Do not promise a payout.",
+            calls=[{"tool": "rules__lookup_rule", "query": "PX-GLASS"}],
+        )
+        self.assertIsNone(reason)
+
     def test_blocks_flood_accept(self) -> None:
         reason = self._stop(
             "Intake CL-04 flood",
@@ -668,6 +689,31 @@ class EnforceRulesTests(unittest.TestCase):
         self.assertIsNotNone(reason)
         assert reason is not None
         self.assertIn("Need photos", reason)
+
+    def test_allows_collision_hold_alias(self) -> None:
+        reason = self._stop(
+            "Intake CL-08 collision, photos missing",
+            "hold. PX-COLLISION. Collision needs photos. If photos are missing, return Need photos.",
+            calls=[{"tool": "rules__lookup_rule", "query": "PX-COLLISION"}],
+        )
+        self.assertIsNone(reason)
+
+    def test_denies_extra_rule_book(self) -> None:
+        from io import StringIO
+        from contextlib import redirect_stdout
+
+        buf = StringIO()
+        with redirect_stdout(buf):
+            code = handle_pre_tool(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "workspaceRoot": str(self.root),
+                    "toolName": "write",
+                    "toolInput": {"file_path": str(self.root / "extra_rules.md"), "content": "PX-FAKE. no"},
+                }
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(buf.getvalue())["decision"], "deny")
 
 
 def main(argv: list[str]) -> int:
