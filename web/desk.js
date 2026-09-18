@@ -159,6 +159,13 @@
     el.addEventListener("mouseenter", () => clearTimeout(t));
   }
 
+  function decisionPhrase(decision) {
+    if (decision === "open") return "Open";
+    if (decision === "hold") return "Hold for photos";
+    if (decision === "refuse") return "Refuse";
+    return "Off-desk";
+  }
+
   function badge(decision) {
     const label = decision === "open" ? "Open" : decision === "hold" ? "Hold" : decision === "refuse" ? "Refuse" : "Off-desk";
     const cls = decision === "open" ? "open" : decision === "hold" ? "hold" : decision === "refuse" ? "refuse" : "off-desk";
@@ -180,6 +187,7 @@
       <div class="topbar-inner">
         <button class="menu-btn icon-btn" type="button" aria-label="Menu" data-menu>☰</button>
         <nav class="nav-links" aria-label="Desk">
+          <a href="clerk.html" ${current === "clerk" ? 'aria-current="page"' : ""}>Desk</a>
           <a href="queue.html" ${current === "queue" ? 'aria-current="page"' : ""}>Queue</a>
           <a href="policy.html" ${current === "policy" ? 'aria-current="page"' : ""}>Policy</a>
           <a href="log.html" ${current === "log" ? 'aria-current="page"' : ""}>Log</a>
@@ -209,6 +217,7 @@
       <div class="drawer-backdrop" data-close-drawer></div>
       <div class="drawer-panel" role="dialog" aria-label="Menu">
         <button class="icon-btn" type="button" aria-label="Close menu" data-close-drawer>✕</button>
+        <a href="clerk.html">Desk</a>
         <a href="queue.html">Queue</a>
         <a href="policy.html">Policy</a>
         <a href="log.html">Log</a>
@@ -461,6 +470,7 @@
     mountShell,
     toast,
     badge,
+    decisionPhrase,
     photosLabel,
     relative,
     absolute,

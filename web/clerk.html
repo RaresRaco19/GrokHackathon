@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clerk surface — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <header class="page-head">
+      <h1>Clerk surface</h1>
+      <p>Incoming reports. Open, hold for photos, or refuse. Cite the policy excerpt.</p>
+    </header>
+    <div class="clerk-layout" data-desk></div>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    const host = document.querySelector("[data-desk]");
+    let selectedId = Intake.params().get("id");
+
+    function reason(r) {
+      if (r.decision === "refuse") return "Refuse is not sent";
+      if (r.decision === "hold") return "Hold for photos";
+      return "";
+    }
+
+    function remount() {
+      document.body.querySelector(".topbar")?.remove();
+      document.body.querySelector(".drawer")?.remove();
+      document.body.querySelector("dialog")?.remove();
+    }
+
+    function trayItem(r, selected) {
+      const current = r.id === selected ? ' aria-current="true"' : "";
+      return `<button type="button" class="tray-item" data-id="${r.id}"${current}>
+        <span class="id numeric">${r.id}</span>
+        <span class="tray-meta">${r.peril} · ${Intake.photosLabel(r.photos)}</span>
+        ${Intake.badge(r.decision)}
+      </button>`;
+    }
+
+    function pane(r) {
+      if (!r) {
+        return Intake.emptyState("No report selected.", "Pick a file from the incoming tray.", "Back to briefing", "index.html");
+      }
+      const phrase = Intake.decisionPhrase(r.decision);
+      return `<article class="clerk-pane">
+        <img class="claim-photo" src="${r.photo}" alt="${r.photo_alt}" />
+        <h2>${r.id} ${Intake.badge(r.decision)}</h2>
+        <p class="clerk-phrase">${phrase}</p>
+        <dl class="facts">
+          <dt>Report</dt><dd class="numeric">${r.id}</dd>
+          <dt>Peril</dt><dd>${r.peril}</dd>
+          <dt>Photos</dt><dd>${Intake.photosLabel(r.photos)}</dd>
+          <dt>Cover</dt><dd class="numeric">${r.cover}</dd>
+          <dt>Decision</dt><dd>${phrase}</dd>
+          <dt>Send state</dt><dd>${r.send_state}</dd>
+          <dt>Claim number</dt><dd class="numeric">${r.claim_number || "—"}</dd>
+          <dt>Received</dt><dd><time datetime="${r.received_at}" title="${Intake.absolute(r.received_at)}">${Intake.absolute(r.received_at)}</time></dd>
+        </dl>
+        <p class="score-meta">Quoted from policy-excerpt.md</p>
+        <blockquote class="quote">${r.quote}</blockquote>
+        <p>Confirm is the only way a claim number is minted. Refuse cannot be sent. Hold waits for photos. Undo restores draft.</p>
+        <div class="claim-actions">
+          <button class="btn btn-primary" type="button" data-confirm ${r.can_confirm ? "" : "disabled"} title="${reason(r)}">Confirm</button>
+          ${r.can_undo ? '<button class="btn btn-ghost" type="button" data-undo>Undo</button>' : ""}
+        </div>
+      </article>`;
+    }
+
+    function bind(data, r) {
+      host.querySelectorAll(".tray-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedId = btn.getAttribute("data-id");
+          history.replaceState(null, "", "clerk.html?id=" + encodeURIComponent(selectedId));
+          paint(data);
+        });
+      });
+      const confirm = host.querySelector("[data-confirm]");
+      if (confirm && r && r.can_confirm) {
+        confirm.addEventListener("click", () => {
+          Intake.confirmReport(r.id).then(() => Intake.loadData().then(paint));
+        });
+      }
+      const undo = host.querySelector("[data-undo]");
+      if (undo && r && r.can_undo) {
+        undo.addEventListener("click", () => {
+          Intake.undoReport(r.id).then(paint);
+        });
+      }
+      const cta = document.querySelector("[data-cta]");
+      if (cta && r) {
+        cta.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (r.can_confirm) host.querySelector("[data-confirm]")?.click();
+        });
+      }
+    }
+
+    function paint(data) {
+      const rows = data.reports;
+      const requested = selectedId;
+      const known = !requested || data.all.some((x) => x.id === requested);
+      remount();
+      if (!known) {
+        Intake.mountShell({ current: "clerk", cta: { href: "clerk.html", label: "Open desk" } });
+        host.innerHTML = Intake.emptyState("No report " + requested + " in fnol.json.", "The kit only has CL-03, CL-04, and CL-08.", "Open desk", "clerk.html");
+        return;
+      }
+      const r = rows.find((x) => x.id === requested) || rows[0] || null;
+      if (r) selectedId = r.id;
+      Intake.mountShell({
+        current: "clerk",
+        cta: {
+          href: "#confirm",
+          label: "Confirm",
+          disabled: !r || !r.can_confirm,
+          title: r && r.can_confirm ? "Mint a claim number" : r ? reason(r) : "Pick a report",
+        },
+      });
+      if (!rows.length) {
+        host.innerHTML = Intake.emptyState("No reports in this range.", "Reset the time range to see the kit files.", "Reset to last 7 days", "clerk.html");
+        host.querySelector(".btn")?.addEventListener("click", (e) => {
+          e.preventDefault();
+          localStorage.setItem("intake.timeRange", "7d");
+          location.href = "clerk.html";
+        });
+        return;
+      }
+      if (selectedId && location.search.indexOf("id=") === -1) {
+        history.replaceState(null, "", "clerk.html?id=" + encodeURIComponent(selectedId));
+      }
+      document.title = r ? r.id + " — Clerk surface" : "Clerk surface — Intake Desk";
+      host.innerHTML = `
+        <aside class="tray" aria-label="Incoming reports">
+          <div class="tray-head">Incoming <span class="numeric">${rows.length}</span></div>
+          ${rows.map((row) => trayItem(row, r && r.id)).join("")}
+        </aside>
+        ${pane(r)}`;
+      bind(data, r);
+    }
+
+    if (Intake.demoState() === "error") {
+      Intake.mountShell({ current: "clerk" });
+      host.innerHTML = Intake.emptyState("Could not load the desk.", "Retry the clerk surface.", "Retry", "clerk.html");
+    } else {
+      Intake.loadData()
+        .then(paint)
+        .catch(() => {
+          remount();
+          Intake.mountShell({ current: "clerk" });
+          host.innerHTML = Intake.emptyState("Could not load the desk.", "Retry the clerk surface.", "Retry", "clerk.html");
+        });
+    }
+  </script>
+</body>
+</html>
