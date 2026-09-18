@@ -193,7 +193,8 @@
 
   function mountShell(opts) {
     const current = opts.current;
-    const cta = opts.cta || { href: "queue.html", label: "Open queue", disabled: false, title: "" };
+    const cta = opts.cta || { href: "clerk.html", label: "Open desk", disabled: false, title: "" };
+    const hideRange = !!opts.hideRange;
     const range = getRange();
     const header = document.createElement("header");
     header.className = "topbar";
@@ -203,21 +204,24 @@
         <button class="menu-btn icon-btn" type="button" aria-label="Menu" data-menu>☰</button>
         <nav class="nav-links" aria-label="Desk">
           <a href="clerk.html" ${current === "clerk" ? 'aria-current="page"' : ""}>Desk</a>
-          <a href="queue.html" ${current === "queue" ? 'aria-current="page"' : ""}>Queue</a>
           <a href="policy.html" ${current === "policy" ? 'aria-current="page"' : ""}>Policy</a>
           <a href="log.html" ${current === "log" ? 'aria-current="page"' : ""}>Log</a>
           <button class="linkish" type="button" data-ask>Ask</button>
         </nav>
         <a class="wordmark" href="index.html" ${current === "overview" ? 'aria-current="page"' : ""}>INTAKE</a>
         <div class="nav-right">
-          <label class="sr-only" for="time-range">Time range</label>
+          ${
+            hideRange
+              ? ""
+              : `<label class="sr-only" for="time-range">Time range</label>
           <select id="time-range" class="time-range" aria-label="Time range">
             <option value="7d"${range === "7d" ? " selected" : ""}>Last 7 days</option>
             <option value="30d"${range === "30d" ? " selected" : ""}>Last 30 days</option>
             <option value="90d"${range === "90d" ? " selected" : ""}>Last 90 days</option>
             <option value="shift"${range === "shift" ? " selected" : ""}>This shift</option>
-          </select>
-          <span class="clerk">Mara Ellison</span>
+          </select>`
+          }
+          <span class="clerk">This laptop</span>
           <a class="btn btn-primary" href="${cta.href || "#"}" ${cta.disabled ? 'aria-disabled="true" tabindex="-1"' : ""} title="${cta.title || ""}" data-cta>
             ${cta.label} ${ARROW}
           </a>
@@ -272,10 +276,13 @@
         if (dialog.open) dialog.close();
       }
     });
-    document.getElementById("time-range").addEventListener("change", (e) => {
-      setRange(e.target.value);
-      location.reload();
-    });
+    const rangeEl = document.getElementById("time-range");
+    if (rangeEl) {
+      rangeEl.addEventListener("change", (e) => {
+        setRange(e.target.value);
+        location.reload();
+      });
+    }
     if (!window.__intakeAskBound) {
       window.__intakeAskBound = true;
       document.addEventListener("click", (e) => {

@@ -725,12 +725,33 @@ table.data .id {
 .example h3 {
   font-family: var(--font-mono);
   font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
+.example .quote { margin: 12px 0 0; }
 .example .expected {
   margin-top: 12px;
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
+.policy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.policy-grid .rule-card { margin-bottom: 0; }
+.policy-grid .rule-card h3 {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.policy-more {
+  margin-top: var(--space-3);
+  font-size: 0.875rem;
+}
+.policy-more a { color: var(--color-text); }
 
 .chart-card { margin-bottom: var(--space-6); }
 .chart-card .helper,
@@ -1078,7 +1099,7 @@ table.data .id {
     align-items: flex-start;
   }
   .prelink .btn { width: 100%; }
-  .kpi-row, .steps { grid-template-columns: 1fr; }
+  .kpi-row, .steps, .policy-grid { grid-template-columns: 1fr; }
   .heatmap, .photo-strip { grid-template-columns: 1fr 1fr; }
   .hero { aspect-ratio: 4 / 3; }
   .hero-copy {
