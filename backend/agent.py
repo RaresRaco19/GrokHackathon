@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
+from pathlib import Path
+
 from backend.mcp_client import RulesMcp
 from backend.paths import repo_root
 
@@ -69,13 +71,8 @@ def load_dotenv() -> None:
 
 
 def system_prompt() -> str:
-    text = (repo_root() / "AGENTS.md").read_text(encoding="utf-8")
-    start = text.find("## System prompt")
-    end = text.find("## Golden cases")
-    if start == -1:
-        return text.strip()
-    body = text[start + len("## System prompt") : end if end != -1 else None]
-    return body.strip()
+    path = Path(__file__).resolve().parent / "system_prompt.md"
+    return path.read_text(encoding="utf-8").strip()
 
 
 def run_agent(

@@ -8,7 +8,7 @@ description: >
 
 # /review-fnol
 
-Follow `AGENTS.md`. Call `rules__lookup_rule` once per inquiry before you decide. Do not skip MCP. Do not invent a PX-* id. Do not name a payout.
+Follow `AGENTS.md` (Grok Build rules). The HTTP desk prompt is `backend/system_prompt.md` and is not used in this session. Call `rules__lookup_rule` once per inquiry before you decide. Do not skip MCP. Do not invent a PX-* id. Do not name a payout.
 
 ## Steps
 
