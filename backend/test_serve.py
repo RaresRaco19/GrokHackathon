@@ -167,6 +167,20 @@ class ServeTests(unittest.TestCase):
         self.assertIn("photo", payload["reports"][0])
         self.assertIn("received_at", payload["reports"][0])
 
+    def test_new_process_drops_cached_assessments(self) -> None:
+        self._json("POST", "/api/assess", {"id": "CL-03"})
+        from backend.serve import DeskApp as Fresh
+        from backend.store import reset_session
+
+        reset_session()
+        fresh = Fresh(llm=AutoLookupClerk())
+        try:
+            row = next(item for item in fresh.queue() if item["id"] == "CL-03")
+            self.assertTrue(row.get("needs_assess"))
+            self.assertIsNone(row.get("decision"))
+        finally:
+            fresh.close()
+
 
 if __name__ == "__main__":
     unittest.main()

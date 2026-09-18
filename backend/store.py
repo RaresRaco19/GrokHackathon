@@ -20,6 +20,17 @@ def log_path() -> Path:
     return var_dir() / "desk.jsonl"
 
 
+def reset_session() -> None:
+    """Drop cached assessments, claim numbers, and the log. Called on process start."""
+    folder = var_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    for path in (state_path(), log_path()):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def load_state() -> dict[str, Any]:
     path = state_path()
     if not path.exists():

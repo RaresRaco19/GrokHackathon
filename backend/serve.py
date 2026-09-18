@@ -23,6 +23,7 @@ from backend.store import (
     log_event,
     log_refuse_once,
     read_log,
+    reset_session,
     save_decision,
     undo,
 )
@@ -49,7 +50,9 @@ PORT = 8788
 
 
 class DeskApp:
-    def __init__(self, llm: LlmSession | None = None) -> None:
+    def __init__(self, llm: LlmSession | None = None, *, keep_state: bool = False) -> None:
+        if not keep_state:
+            reset_session()
         self.client = RulesMcp()
         self.client.start()
         self.llm = llm
@@ -308,9 +311,16 @@ def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
 
         def _json(self, status: int, payload: Any) -> None:
             blob = json.dumps(payload).encode("utf-8")
-            self._send(status, blob, content_type="application/json")
+            extra = {"Cache-Control": "no-store"}
+            self._send(status, blob, content_type="application/json", extra_headers=extra)
 
-        def _send(self, status: int, body: bytes, content_type: str | None) -> None:
+        def _send(
+            self,
+            status: int,
+            body: bytes,
+            content_type: str | None,
+            extra_headers: dict[str, str] | None = None,
+        ) -> None:
             self.send_response(status)
             if content_type:
                 self.send_header("Content-Type", content_type)
@@ -318,6 +328,9 @@ def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            if extra_headers:
+                for key, value in extra_headers.items():
+                    self.send_header(key, value)
             self.end_headers()
             if status != 204:
                 self.wfile.write(body)

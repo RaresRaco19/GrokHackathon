@@ -22,9 +22,10 @@ python -m unittest backend.test_assess backend.test_serve
 python .grok/hooks/scripts/enforce_rules.py --self-test
 python -m backend.run CL-04
 python -m backend.serve
+bash bin/desk.sh
 ```
 
-Open **http://127.0.0.1:8788/clerk.html**. The same process serves `web/` and the API. Clerk assessments are Grok + MCP against `fnol.json`.
+`bin/desk.sh` loads `.env`, starts the API + `web/` on `127.0.0.1:8788`, and opens **http://127.0.0.1:8788/clerk.html**. The same process serves the clerk UI and Grok assessments against `fnol.json`.
 
 API binds `127.0.0.1:8788`. State dir is `var/` (`CLAIMDESK_VAR`). Kit root: `CLAIMDESK_ROOT`.
 
