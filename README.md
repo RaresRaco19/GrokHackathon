@@ -8,20 +8,24 @@ Kit (do not rewrite): `fnol.json`, `policy-excerpt.md`, `rules_mcp.py`.
 
 ## Setup
 
+Python 3.14 via [uv](https://docs.astral.sh/uv/). From the repo root:
+
 ```text
-pip install -r requirements.txt
+uv sync
 ```
 
-Put `XAI_API_KEY` in the environment or a gitignored `.env`. Live assess (`python -m backend.run CL-04`, `POST /api/assess`) needs the key. Unit tests inject a scripted model and still hit the real MCP.
+That creates `.venv` (gitignored) and installs `xai-sdk`. `bin/desk.sh` uses `.venv/bin/python` when it exists.
+
+Put `XAI_API_KEY` in the environment or a gitignored `.env`. Live assess (`uv run python -m backend.run CL-04`, `POST /api/assess`) needs the key. Unit tests inject a scripted model and still hit the real MCP.
 
 ## Run
 
 ```text
-python -m backend.run mcp
-python -m unittest backend.test_assess backend.test_serve
-python .grok/hooks/scripts/enforce_rules.py --self-test
-python -m backend.run CL-04
-python -m backend.serve
+uv run python -m backend.run mcp
+uv run python -m unittest backend.test_assess backend.test_serve
+uv run python .grok/hooks/scripts/enforce_rules.py --self-test
+uv run python -m backend.run CL-04
+uv run python -m backend.serve
 bash bin/desk.sh
 ```
 
@@ -38,6 +42,8 @@ API binds `127.0.0.1:8788`. State dir is `var/` (`CLAIMDESK_VAR`). Kit root: `CL
 | POST | `/api/assess` | `{ "id": "CL-03" }` or `{ "question": "will we pay?" }`. Grok + MCP tools. |
 | POST | `/api/confirm` | Human click. Mints `FNOL-{id}-{UTC}` on **open** only. CL-04 → `400 {"error":"refuse is not sent"}`. |
 | POST | `/api/undo` | Restore draft. |
+| POST | `/api/upload` | Multipart `id` + `file` (image or PDF) onto a report. |
+| GET | `/api/files/{id}/{stored}` | Serve an uploaded file. |
 | GET | `/api/log` | JSONL events. No amount / payout / `$` keys. |
 
 `mcp` on a decision is the tool call the model actually made.

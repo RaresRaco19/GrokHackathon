@@ -19,14 +19,18 @@ if [[ -z "${XAI_API_KEY:-}" ]]; then
 fi
 
 PY=""
-for candidate in python3 python py; do
-  if command -v "$candidate" >/dev/null 2>&1; then
-    PY="$candidate"
-    break
-  fi
-done
+if [[ -x "$ROOT/.venv/bin/python" ]]; then
+  PY="$ROOT/.venv/bin/python"
+else
+  for candidate in python3 python py; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      PY="$candidate"
+      break
+    fi
+  done
+fi
 if [[ -z "$PY" ]]; then
-  echo "Python 3 not found on PATH." >&2
+  echo "Python 3 not found. Run: uv sync" >&2
   exit 1
 fi
 

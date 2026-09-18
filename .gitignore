@@ -1,7 +1,9 @@
 __pycache__/
 *.py[cod]
+.venv/
 var/*.json
 var/*.jsonl
+var/uploads/
 .grok/hooks/.state/
 .env
 
