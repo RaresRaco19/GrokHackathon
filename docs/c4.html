@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claim intake desk — C4 twin</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "loose",
+      suppressErrorRendering: true,
+      themeVariables: {
+        primaryColor: "#dbeafe",
+        primaryTextColor: "#0f172a",
+        primaryBorderColor: "#1d4ed8",
+        lineColor: "#334155",
+        secondaryColor: "#ecfeff",
+        tertiaryColor: "#f8fafc",
+        fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
+      }
+    });
+  </script>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --paper: #f8fafc;
+      --card: #ffffff;
+      --accent: #1d4ed8;
+      --ok: #166534;
+      --warn: #92400e;
+      --deny: #991b1b;
+      --bot: #6d28d9;
+      --bot-bg: #f5f3ff;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.55 "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    header {
+      background: var(--ink);
+      color: #fff;
+      padding: 2rem 1.5rem 1.25rem;
+    }
+    header p { color: #cbd5e1; max-width: 78ch; }
+    header .kicker {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: #93c5fd;
+    }
+    header h1 { margin: 0.35rem 0 0.75rem; line-height: 1.15; }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.7rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    nav a { color: var(--accent); text-decoration: none; font-size: 0.92rem; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    section { margin: 2.5rem 0 3rem; }
+    h1, h2, h3 { line-height: 1.2; }
+    h2 { border-bottom: 2px solid var(--ink); padding-bottom: 0.35rem; }
+    h3 { color: var(--accent); }
+    h3.bot { color: var(--bot); }
+    .lead { font-size: 1.1rem; max-width: 78ch; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .card h3 { margin-top: 0; }
+    .card.bot {
+      border-color: #c4b5fd;
+      background: var(--bot-bg);
+    }
+    .mermaid {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .mermaid-error {
+      color: #991b1b;
+      background: #fef2f2;
+      white-space: pre-wrap;
+      font: 0.82rem/1.4 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid var(--line); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+    th { background: #e2e8f0; }
+    code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.9em; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.9rem 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font: 0.82rem/1.45 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .open { background: #dcfce7; color: var(--ok); }
+    .hold { background: #fef3c7; color: var(--warn); }
+    .refuse { background: #fee2e2; color: var(--deny); }
+    .draft { background: #e2e8f0; color: #334155; }
+    .score { background: #fee2e2; color: var(--deny); font-weight: 700; }
+    .bot-tag { background: #ede9fe; color: var(--bot); }
+    ol.steps { max-width: 78ch; }
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      max-width: 85ch;
+    }
+    .callout.live {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .callout.bot {
+      background: var(--bot-bg);
+      border-color: #c4b5fd;
+    }
+    .callout.warn {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+    .note { color: var(--muted); font-size: 0.92rem; }
+    footer { color: var(--muted); font-size: 0.9rem; padding: 2rem 1.5rem; }
+    @media (max-width: 720px) {
+      header { padding: 1.4rem 1rem 1rem; }
+      header h1 { font-size: 1.45rem; }
+      main { padding: 1rem; }
+      nav { padding: 0.55rem 1rem; }
+      table { font-size: 0.88rem; }
+      pre { font-size: 0.75rem; }
+    }
+    @media print {
+      nav { display: none; }
+      header { background: #fff; color: #000; }
+      .mermaid { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="kicker">C4 model · twin of design.html · paths match the live kit · 2026-09-18 · c1c2b545</div>
+    <h1>Claim intake desk (FNOL)</h1>
+    <p>
+      Grok Enablement Workshop Module 4.3. A clerk opens a damage report.
+      The desk reads <code>md/policy-excerpt.md</code>, returns open / hold for photos / refuse,
+      quotes the file, and never states a payout. Clone of DeskAgent, plus confirm-before-send
+      and Grok Bot <strong>Intake Clerk</strong>. Twin of <a href="design.html" style="color:#93c5fd">design.html</a>
+      after the code landed. Docs do not replace the live demo.
+    </p>
+  </header>
+
+  <nav>
+    <a href="#high-level">High-level</a>
+    <a href="#context">C4 Context</a>
+    <a href="#containers">C4 Containers</a>
+    <a href="#detailed">Detailed</a>
+    <a href="#components">C4 Components</a>
+    <a href="#code">Decision path</a>
+    <a href="#data">Data</a>
+    <a href="#usecases">Use cases</a>
+    <a href="#web-backend">Website + backend</a>
+    <a href="#must-show">Must-show</a>
+    <a href="#went-live">If this went live</a>
+    <a href="#bot">Bot</a>
+    <a href="#alternatives">Alternatives</a>
+    <a href="#security">Security</a>
+    <a href="#decisions">Key decisions</a>
+    <a href="#prs">PR plan</a>
+  </nav>
+
+  <main>
+    <section id="high-level">
+      <h2>High-level design</h2>
+      <p class="lead">
+        The desk is a local decision system on one laptop, not a hosted insurer platform.
+        Five faces share one path: CLI, tests, website, Grok Build chat, and Grok Bot.
+        All quote the same kit file. None invent rules. None state a payout.
+        Kit files were inspected on 2026-09-18. Quotes are always read from <code>md/policy-excerpt.md</code> at runtime.
+      </p>
+      <div class="grid">
+        <article class="card">
+          <h3>Purpose</h3>
+          <p>Decide FNOL reports. CL-03 glass → <span class="tag open">open</span> <code>PX-GLASS</code>. CL-04 flood → <span class="tag refuse">refuse</span> <code>PX-FLOOD</code> <span class="tag score">scoring case</span>. Never a payout.</p>
+        </article>
+        <article class="card">
+          <h3>Actors</h3>
+          <p>Intake clerk (opens, asks, confirms). Judge (live pass + refuse, must-show). Grok Build. Intake Clerk bot (night watch).</p>
+        </article>
+        <article class="card">
+          <h3>Source of truth</h3>
+          <p><code>md/policy-excerpt.md</code> is the only rule book. <code>data/fnol.json</code> is the only report data. Do not rewrite either.</p>
+        </article>
+        <article class="card">
+          <h3>Outcomes</h3>
+          <p>
+            <span class="tag open">open</span>
+            <span class="tag hold">hold for photos</span>
+            <span class="tag refuse">refuse</span>
+            <span class="tag draft">draft until confirm</span>
+          </p>
+        </article>
+      </div>
+
+      <div class="callout" style="margin-top:1rem">
+        <strong>Win pick.</strong> Track 4.3 plus Intake Clerk.
+        Derived scoring (not official weights and <strong>not a judge promise</strong>; see <code>track-scoring.html</code>):
+        4.3 with Bot modeled at a 20/20 ceiling. Official judging has no published points.
+        Scoring case is CL-04. Any dollar amount zeros Decisions.
+      </div>
+
+      <h3>System at a glance</h3>
+      <div class="mermaid">
+flowchart LR
+  clerk[Clerk]
+  runner["bin/run.sh and bin/demo.sh"]
+  ui["web UI"]
+  backend["python/serve_desk.py"]
+  grok[Grok Build chat]
+  bot["Intake Clerk Grok Bot"]
+  engine["python/decide.py"]
+  mcp["rules MCP lookup_rule"]
+  kit["fnol.json"]
+  rules["policy-excerpt.md"]
+  tests["python/test_desk.py"]
+  log["var/intake-log.jsonl"]
+
+  clerk --> runner
+  clerk --> ui
+  clerk --> grok
+  clerk --> bot
+  ui --> backend
+  backend --> engine
+  backend --> log
+  runner --> engine
+  grok --> mcp
+  grok --> kit
+  bot --> engine
+  engine --> kit
+  engine --> rules
+  mcp --> rules
+  tests --> engine
+      </div>
+
+      <h3>Repo location</h3>
+      <p>
+        Product root is this repo. Kit lives in place: <code>data/fnol.json</code>,
+        <code>md/policy-excerpt.md</code>, <code>python/rules_mcp.py</code>.
+        Do not create <code>ClaimDesk/</code>. Do not rewrite kit bodies. DeskAgent stays untouched.
+      </p>
+
+      <h3>Inspected kit (2026-09-18)</h3>
+      <table>
+        <thead><tr><th>Report</th><th>peril</th><th>photos</th><th>cover</th><th>Decision</th></tr></thead>
+        <tbody>
+          <tr><td>CL-03</td><td>glass</td><td>true</td><td><code>PX-GLASS</code></td><td><span class="tag open">open</span></td></tr>
+          <tr><td>CL-04</td><td>flood</td><td>true</td><td><code>PX-FLOOD</code></td><td><span class="tag refuse">refuse</span> scoring</td></tr>
+          <tr><td>CL-08</td><td>collision</td><td>false</td><td><code>PX-COLLISION</code></td><td><span class="tag hold">hold for photos</span> pocket</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Policy bodies are quoted from <code>md/policy-excerpt.md</code> at runtime. Also <code>PX-NO-PAY</code>: never write “we will pay” or name a settlement amount.</p>
+
+      <h3>Folder layout (DeskAgent clone, kit already in place)</h3>
+      <pre>GrokHackathon/
+  README.md                   # laptop map + Intake Clerk brief
+  lab-plan.md                 # inspect first; agreed plan
+  AGENTS.md
+  data/fnol.json              # kit — do not rewrite
+  md/policy-excerpt.md        # kit — do not rewrite
+  python/
+    __init__.py               # empty; unittest package
+    decide.py                 # oracle
+    serve_desk.py             # 127.0.0.1:8788
+    protect_rules.py
+    rules_mcp.py              # parent-walk + pin md/policy-excerpt.md
+    test_desk.py
+    test_serve.py
+    display.json              # chrome only; never an engine input
+  bin/run.sh demo.sh desk.sh start-web.sh
+  web/                        # original FNOL UI — not Alder, not workshop demo
+  var/.gitkeep                # runtime log + desk_state gitignored
+  docs/c4.html docs/lab-report.html docs/design.html
+  SDD/
+  .grok/                      # skill, hook, plugin, config.toml</pre>
+
+      <h3>Module 3 → 4.3 mapping</h3>
+      <table>
+        <thead>
+          <tr><th>DeskAgent (PA)</th><th>Claim intake (FNOL)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Approve</td><td>open</td></tr>
+          <tr><td>Need more info</td><td>CL-08 collision, photos false → hold for photos (<code>PX-COLLISION</code>; pocket)</td></tr>
+          <tr><td>Deny</td><td>refuse</td></tr>
+          <tr><td>Refuse medical advice</td><td>refuse payout / medical / legal advice</td></tr>
+          <tr><td>PA-1041</td><td>CL-03 glass → open</td></tr>
+          <tr><td>PA-1043</td><td>CL-04 flood → refuse (scoring case)</td></tr>
+          <tr><td><code>payer_rules.md</code></td><td><code>md/policy-excerpt.md</code></td></tr>
+          <tr><td><code>requests.json</code></td><td><code>data/fnol.json</code></td></tr>
+          <tr><td>review-pa / alder-desk</td><td>review-fnol / fnol-desk</td></tr>
+          <tr><td>Approve shown as done</td><td>Confirm-before-send; refuse logged not sent</td></tr>
+          <tr><td>—</td><td>Grok Bot Intake Clerk</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="context">
+      <h2>C4 Level 1 — System context</h2>
+      <p>
+        The desk sits between a human clerk and a static kit. There is no remote policy API.
+        Grok Bot platform is external; Intake Clerk is our named teammate on that platform.
+      </p>
+      <div class="mermaid">
+C4Context
+  title System context - Claim intake desk
+  Person(clerk, "Intake clerk", "Opens reports and confirms")
+  Person(judge, "Judge", "Live pass refuse and must-show")
+  System(desk, "Claim intake desk", "open hold refuse - quotes policy - never a payout")
+  System_Ext(kit, "Workshop kit", "data/fnol.json md/policy-excerpt.md python/rules_mcp.py")
+  System_Ext(botplat, "Grok Bot platform", "Intake Clerk brief - wait for yes")
+  Rel(clerk, desk, "Queue ask confirm undo")
+  Rel(desk, kit, "Reads reports and quotes policy")
+  Rel(clerk, botplat, "Pastes Intake Clerk brief")
+  Rel(botplat, desk, "Same oracle - does not mint")
+  Rel(judge, desk, "demo tests website Bot")
+      </div>
+    </section>
+
+    <section id="containers">
+      <h2>C4 Level 2 — Containers</h2>
+      <p>
+        CLI, chat, website, tests, and <strong>Intake Clerk</strong> share the kit.
+        The website UI calls a Python backend. Tests treat <code>python/decide.py</code> as the oracle.
+        Bot is a first-class container, not a footnote, and not a second rule book.
+      </p>
+      <div class="mermaid">
+C4Container
+  title Container diagram - Claim intake desk
+  Person(clerk, "Intake clerk", "File coverage only")
+  System_Boundary(desk, "Claim intake desk") {
+    Container(cli, "bin/run.sh and bin/demo.sh", "Bash", "Case runner and laptop walkthrough")
+    Container(ui, "web UI", "HTML CSS JS", "Queue quote confirm undo log - no rules in the page")
+    Container(backend, "python/serve_desk.py", "Python HTTP", "queue ask confirm log health")
+    Container(engine, "python/decide.py", "Python 3 stdlib", "Oracle - parse kit decide quote refuse")
+    Container(chat, "Grok Build", "Agent", "AGENTS.md skill hook plugin")
+    Container(mcp, "rules MCP", "Python stdio", "list_rules and lookup_rule")
+    Container(bot, "Intake Clerk", "Grok Bot", "Wait-for-yes. Refuse logged not sent. Does not mint.")
+    ContainerDb(files, "Kit files", "JSON + Markdown", "data/fnol.json and md/policy-excerpt.md")
+    ContainerDb(log, "Intake log", "JSONL", "id decision quote timestamp - no amount")
+    Container(tests, "python/test_desk.py and test_serve.py", "unittest", "CL-03 open CL-04 refuse API uses engine")
+  }
+  Rel(clerk, cli, "bin/run.sh CL-03")
+  Rel(clerk, ui, "bin/desk.sh then browser")
+  Rel(clerk, chat, "/review-fnol or free text")
+  Rel(clerk, bot, "Overnight queue - human yes")
+  Rel(ui, backend, "HTTP APIs")
+  Rel(backend, engine, "Invokes")
+  Rel(backend, log, "Appends on confirm or refuse materialize")
+  Rel(cli, engine, "Invokes")
+  Rel(chat, mcp, "lookup_rule")
+  Rel(chat, files, "Reads fnol.json")
+  Rel(bot, engine, "Re-runs if files staged")
+  Rel(engine, files, "Loads reports and policy")
+  Rel(mcp, files, "Reads policy-excerpt.md")
+  Rel(tests, engine, "Subprocess JSON")
+      </div>
+    </section>
+
+    <section id="detailed">
+      <h2>Detailed design</h2>
+      <p class="lead">
+        Detailed design is the decision path, Grok surfaces, website backend, confirm-before-send,
+        and the Bot. Chat and the UI are not allowed a second policy memory.
+        Policy <em>bodies</em> come from the file at runtime — not as a second book in JS or the skill.
+      </p>
+      <ol class="steps">
+        <li>Payout / settlement / “we will pay” → <strong>refuse</strong>, quote <code>PX-NO-PAY</code>. Medical/legal → refuse with <code>No rule line matched.</code> plus a fixed coverage-only sentence. Off-desk JSON uses <code>rule_id: null</code>.</li>
+        <li>Load the report (<code>id</code>, <code>peril</code>, <code>photos</code>, <code>cover</code>). Lookup <code>cover</code> in <code>load_policy()</code>.</li>
+        <li><code>cover == PX-FLOOD</code> → <strong>refuse</strong> (CL-04). Photos true does not override.</li>
+        <li><code>photos === false</code> → <strong>hold for photos</strong> (CL-08). Quote <code>PX-COLLISION</code> (“Need photos”). Collision is hold-only when photos are false. Do not invent open-collision.</li>
+        <li><code>cover == PX-GLASS</code> → <strong>open</strong> (CL-03).</li>
+        <li>No matching line → say so. One algorithm: cover-id lookup, not token scan.</li>
+      </ol>
+      <p class="note">GET /api/queue is read-only. Refuse logging happens in <code>ensure_state()</code>, not on GET. Only <code>POST /api/confirm</code> mints a claim number.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>CLI path</h3>
+          <p><code>bin/run.sh</code> selects a case. <code>python/decide.py</code> parses the policy file, applies the order above, prints clerk view or JSON.</p>
+        </article>
+        <article class="card">
+          <h3>Website path</h3>
+          <p><code>bin/desk.sh</code> starts <code>python/serve_desk.py</code> on <code>127.0.0.1:8788</code>. UI fetches queue / ask / confirm / log. The page does not contain policy bodies.</p>
+        </article>
+        <article class="card">
+          <h3>Chat path</h3>
+          <p>Grok loads <code>AGENTS.md</code> and <code>review-fnol</code>, calls MCP <code>lookup_rule</code>, then applies the same order. Output must match the script.</p>
+        </article>
+        <article class="card bot">
+          <h3 class="bot">Bot path</h3>
+          <p>Intake Clerk is a briefed teammate. Wait-for-yes. Refuse logged not sent. Does <strong>not</strong> mint. Laptop <code>POST /api/confirm</code> is the only mint.</p>
+        </article>
+      </div>
+
+      <h3>MCP command</h3>
+      <p>
+        Register from this folder:
+        <code>grok mcp add --scope project rules -- python3 python/rules_mcp.py</code>.
+        The stub lives under <code>python/</code> only — no root shim.
+        Parent-walk when <code>HERE.name == "python"</code>, pin <code>RULE_FILE</code> to
+        <code>md/policy-excerpt.md</code>. Flood hit must start with <code>PX-FLOOD</code>.
+      </p>
+
+      <h3>Engine JSON contract</h3>
+      <pre>{
+  "decision": "open",
+  "rule_id": "PX-GLASS",
+  "quoted": "PX-GLASS. Glass breakage is in force when photos are on the file. Accept for intake. Do not promise a payout.",
+  "source": "policy-excerpt.md",
+  "id": "CL-03",
+  "peril": "glass",
+  "photos": true,
+  "cover": "PX-GLASS"
+}</pre>
+      <p class="note">
+        Engine <code>decision</code> is <code>open</code> | <code>hold</code> | <code>refuse</code>.
+        Clerk view prints hold as <code>hold for photos</code>. Website JSON adds
+        <code>label</code>, <code>send_state</code>, and <code>claim_number</code>.
+        Kit ids: <code>PX-GLASS</code>, <code>PX-FLOOD</code>, <code>PX-COLLISION</code>, <code>PX-NO-PAY</code>. Never mint others.
+        The engine never mints <code>claim_number</code>. Only <code>POST /api/confirm</code> does.
+      </p>
+
+      <h3>HTTP</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET</code></td><td><code>/api/queue</code></td><td>Read-only. Decisions + <code>send_state</code> + <code>can_confirm</code> / <code>can_undo</code></td></tr>
+          <tr><td><code>POST</code></td><td><code>/api/ask</code></td><td>Payout-family → refuse / <code>PX-NO-PAY</code>. Medical/legal → refuse / no-match. Else Off-desk JSON <code>rule_id: null</code></td></tr>
+          <tr><td><code>POST</code></td><td><code>/api/confirm</code></td><td>Only mint. 400 JSON <code>{"error":"…"}</code>. utccompact = <code>YYYYMMDDTHHMMSSZ</code></td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/log</code></td><td>JSONL, no amounts. Read-only</td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/health</code></td><td>Paths to policy, reports, engine</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="components">
+      <h2>C4 Level 3 — Components</h2>
+      <h3>Decision engine</h3>
+      <div class="mermaid">
+C4Component
+  title Component diagram - python/decide.py
+  Container_Boundary(engine, "python/decide.py") {
+    Component(main, "main and parse_args", "CLI", "all CL id ask JSON")
+    Component(scope, "is_off_scope and refuse_off_scope", "Python", "payout medical legal refuse")
+    Component(load, "load_policy load_reports normalize_report", "Python", "Kit I/O - PX- ids from file")
+    Component(decide, "decide_report", "Python", "cover-id then precedence")
+    Component(quote, "quote_line record render", "Python", "Verbatim policy line")
+  }
+  ContainerDb(rules, "policy-excerpt.md", "Markdown", "PX-GLASS PX-FLOOD PX-COLLISION PX-NO-PAY")
+  ContainerDb(fnol, "fnol.json", "JSON", "CL-03 CL-04 CL-08")
+  Rel(main, scope, "Ask flag or ask-like text")
+  Rel(main, load, "Coverage case")
+  Rel(main, decide, "Normalized report")
+  Rel(decide, quote, "Builds decision record")
+  Rel(load, rules, "Parse lines")
+  Rel(load, fnol, "Read objects")
+  Rel(quote, rules, "Body must exist in file")
+      </div>
+
+      <h3>Grok Build surfaces + Intake Clerk</h3>
+      <div class="mermaid">
+C4Component
+  title Component diagram - Grok Build pack and Intake Clerk
+  Person(clerk, "Clerk")
+  Container_Boundary(grok, "Grok Build") {
+    Component(agents, "AGENTS.md", "Project rules", "Kit-only quote no payout")
+    Component(skill, "review-fnol skill", "SKILL.md", "Ordered steps and MCP lookup")
+    Component(hook, "protect-rules hook", "PreToolUse", "Blocks policy-excerpt.md")
+    Component(plugin, "fnol-desk plugin", "plugin pack", "Skill hook and MCP")
+  }
+  Container(mcp, "rules MCP", "shim to python/rules_mcp.py", "lookup_rule and list_rules")
+  Container(bot, "Intake Clerk", "Grok Bot", "Wait-for-yes - does not mint")
+  ContainerDb(book, "policy-excerpt.md", "Markdown")
+  Rel(clerk, skill, "/review-fnol or auto")
+  Rel(clerk, bot, "Overnight")
+  Rel(skill, agents, "Follows standing rules")
+  Rel(skill, mcp, "lookup_rule query")
+  Rel(mcp, book, "Line scan")
+  Rel(hook, book, "Deny write")
+  Rel(bot, mcp, "Same lookup_rule")
+  Rel(plugin, skill, "Packs")
+  Rel(plugin, hook, "Packs")
+  Rel(plugin, mcp, "Packs")
+      </div>
+    </section>
+
+    <section id="code">
+      <h2>C4 Level 4 — Decision path (code-level)</h2>
+      <p>
+        Function-level control flow inside <code>decide.py</code>.
+        CL-04 has <code>photos: true</code> and still refuses — flood is evaluated first.
+      </p>
+      <div class="mermaid">
+flowchart TD
+  startNode["Input: report id or ask text"] --> adv{"Off-scope ask?"}
+  adv -->|payout / settlement| rPay["refuse + quote PX-NO-PAY"]
+  adv -->|medical / legal| rMed["refuse + No rule line matched"]
+  adv -->|no| loadReq["Load report + parse PX- lines"]
+  loadReq --> miss{"id in fnol.json?"}
+  miss -->|no| err["Exit 1: unknown id"]
+  miss -->|yes| cover{"cover in load_policy()?"}
+  cover -->|no| none
+  cover -->|yes| flood{"cover is PX-FLOOD?"}
+  flood -->|yes| d4["refuse + quote PX-FLOOD"]
+  flood -->|no| photos{"photos false?"}
+  photos -->|yes| dHold["hold for photos + quote cover line"]
+  photos -->|no| glass{"cover is PX-GLASS?"}
+  glass -->|yes| d3["open + quote PX-GLASS"]
+  glass -->|no| none["No rule line matched"]
+      </div>
+    </section>
+
+    <section id="data">
+      <h2>Detailed data design</h2>
+      <p class="note">
+        Inspected 2026-09-18. <code>data/fnol.json</code> is an array of <code>{id, peril, photos, cover}</code>.
+        Policy lines in <code>md/policy-excerpt.md</code> are <code>PX-GLASS</code>, <code>PX-FLOOD</code>, <code>PX-COLLISION</code>, <code>PX-NO-PAY</code>.
+        No claimant names in the kit — the UI must not invent them.
+      </p>
+      <div class="mermaid">
+erDiagram
+  REPORT ||--|| DECISION : "one per run"
+  POLICY_LINE ||--o{ DECISION : "quoted by"
+  DECISION ||--o{ LOG_EVENT : "appends"
+  REPORT {
+    string id PK
+    string peril
+    boolean photos
+    string cover
+  }
+  POLICY_LINE {
+    string rule_id
+    string body
+    string source
+  }
+  DECISION {
+    string decision
+    string quoted
+    string send_state
+    string claim_number
+  }
+  LOG_EVENT {
+    string ts
+    string id
+    string decision
+    string quoted
+    string event
+  }
+      </div>
+      <table>
+        <thead>
+          <tr><th>Named case</th><th>When (track page)</th><th>Label</th><th>Send</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>CL-03</code></td><td>glass, photos true, <code>PX-GLASS</code></td><td><span class="tag open">open</span></td><td>Draft until clerk confirms</td></tr>
+          <tr><td><code>CL-08</code></td><td>collision, photos false, <code>PX-COLLISION</code></td><td><span class="tag hold">hold for photos</span></td><td>Waits; no claim number; pocket</td></tr>
+          <tr><td><code>CL-04</code> <span class="tag score">scoring</span></td><td>flood, photos true, <code>PX-FLOOD</code></td><td><span class="tag refuse">refuse</span></td><td>Logged, not sent</td></tr>
+          <tr><td>Ask box</td><td>Payout → <code>PX-NO-PAY</code></td><td><span class="tag refuse">refuse</span></td><td>Not a send</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Log object: <code>ts</code>, <code>id</code>, <code>decision</code>, <code>quoted</code>, <code>event</code>, optional <code>claim_number</code>.
+        <strong>No amount field. No <code>$</code>.</strong>
+        <code>desk_state.json</code> is <code>{ "&lt;id&gt;": { "send_state", "claim_number", "refuse_logged" } }</code>.
+        Collision is hold-only when photos are false.
+      </p>
+    </section>
+
+    <section id="usecases">
+      <h2>Use cases and workflows</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Actor</th><th>Trigger</th><th>Result</th><th>Prove with</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>UC-1</td><td>Clerk</td><td>Open CL-03</td>
+            <td><span class="tag open">open</span> quote from file, draft</td>
+            <td><code>bin/run.sh CL-03</code></td>
+          </tr>
+          <tr>
+            <td>UC-2</td><td>Clerk</td><td>Open CL-04</td>
+            <td><span class="tag refuse">refuse</span> <code>PX-FLOOD</code>, not sent</td>
+            <td><code>bin/run.sh CL-04</code></td>
+          </tr>
+          <tr>
+            <td>UC-2b</td><td>Clerk</td><td>Open CL-08 (pocket)</td>
+            <td><span class="tag hold">hold for photos</span> <code>PX-COLLISION</code></td>
+            <td><code>python3 python/decide.py CL-08</code></td>
+          </tr>
+          <tr>
+            <td>UC-3</td><td>Clerk</td><td>Ask payout</td>
+            <td><span class="tag refuse">refuse</span> no amount</td>
+            <td><code>bin/run.sh ask</code></td>
+          </tr>
+          <tr>
+            <td>UC-4</td><td>Clerk</td><td>Confirm CL-03</td>
+            <td>Claim number minted, log line</td>
+            <td><code>POST /api/confirm</code></td>
+          </tr>
+          <tr>
+            <td>UC-5</td><td>Clerk</td><td>Undo</td>
+            <td>Back to draft</td>
+            <td><code>POST /api/confirm</code> undo</td>
+          </tr>
+          <tr>
+            <td>UC-6</td><td>Grok Build</td><td>/review-fnol</td>
+            <td>Same labels after lookup_rule</td>
+            <td>Chat vs <code>bin/demo.sh</code></td>
+          </tr>
+          <tr>
+            <td>UC-7</td><td>Reviewer</td><td>Edit policy file</td>
+            <td>Hook denies</td>
+            <td>PreToolUse protect-rules</td>
+          </tr>
+          <tr>
+            <td>UC-8</td><td>Reviewer</td><td>Golden tests</td>
+            <td>CL-04 still refuse</td>
+            <td><code>bin/run.sh test</code></td>
+          </tr>
+          <tr>
+            <td>UC-9</td><td>Website</td><td>Queue + ask</td>
+            <td>UI invokes engine</td>
+            <td><code>test_serve.py</code></td>
+          </tr>
+          <tr>
+            <td>UC-10</td><td>Intake Clerk</td><td>Night queue / 20s demo</td>
+            <td>Wait-for-yes. Refuse logged not sent. Does not mint.</td>
+            <td>Bot brief + Auto Review</td>
+          </tr>
+          <tr>
+            <td>UC-11</td><td>Clerk</td><td>CL-08</td>
+            <td><span class="tag hold">hold for photos</span> waits</td>
+            <td>Pocket only</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>UC-1 / UC-2 — live pass and scoring refuse</h3>
+      <div class="mermaid">
+sequenceDiagram
+  actor Clerk
+  participant Decide as decide.py
+  participant Fnol as fnol.json
+  participant Policy as policy-excerpt.md
+  Clerk->>Decide: CL-03
+  Decide->>Fnol: load report
+  Decide->>Policy: matching glass line
+  Note over Decide: recommendation only
+  Decide-->>Clerk: open quoted from file send_state=draft
+  Clerk->>Decide: CL-04
+  Decide->>Fnol: load report
+  Decide->>Policy: matching flood line
+  Decide-->>Clerk: refuse quoted from file not sent
+      </div>
+
+      <h3>UC-10 — Bot wait-for-yes</h3>
+      <div class="mermaid">
+sequenceDiagram
+  actor Clerk
+  participant Bot as Intake Clerk
+  participant Laptop as POST /api/confirm
+  Clerk->>Bot: Keep the night queue
+  Bot-->>Clerk: CL-03 open waiting for yes
+  Bot-->>Clerk: CL-04 refuse logged not sent
+  Note over Bot: Does not mint. Does not write laptop log.
+  Clerk->>Laptop: confirm CL-03
+  Laptop-->>Clerk: FNOL-CL-03-YYYYMMDDTHHMMSSZ
+      </div>
+    </section>
+
+    <section id="web-backend">
+      <h2>Website + backend</h2>
+      <p>
+        Reverse-engineer a claims UI. Do not copy Alder Health chrome or workshop demo HTML.
+        No Ana Ruiz / member IDs / Reviewer J. Hale. Stone + navy + amber, not teal/gold.
+        <code>web/desk.js</code> only fetches. Labels for CSS tone: open / hold for photos / refuse.
+      </p>
+      <div class="mermaid">
+sequenceDiagram
+  actor Clerk
+  participant UI as web/desk.js
+  participant API as python/serve_desk.py
+  participant Engine as python/decide.py
+  participant Kit as kit files
+  participant Log as intake-log.jsonl
+  Clerk->>UI: open http://127.0.0.1:8788/
+  UI->>API: GET /api/queue
+  API->>Engine: decide_report for each
+  Engine->>Kit: fnol.json policy-excerpt.md
+  Engine-->>API: open / refuse
+  API-->>UI: JSON queue
+  Clerk->>UI: Confirm open CL-03
+  UI->>API: POST /api/confirm
+  API->>Log: id open quote ts claim_number
+  Clerk->>UI: What is the payout?
+  UI->>API: POST /api/ask
+  API->>Engine: refuse_off_scope
+  Engine-->>API: refuse no amount
+      </div>
+      <div class="grid">
+        <article class="card">
+          <h3>Confirm</h3>
+          <p>Open + draft → mint <code>FNOL-{id}-{YYYYMMDDTHHMMSSZ}</code>, <code>sent</code>. Hold + draft → <code>held</code>, no number. Refuse confirm → 400 <code>{"error":"refuse is not sent"}</code>. GET does not write.</p>
+        </article>
+        <article class="card">
+          <h3>Undo</h3>
+          <p>Sent or held → draft. Claim number cleared. Append undo line. Do not delete history.</p>
+        </article>
+        <article class="card">
+          <h3>Bind</h3>
+          <p><code>127.0.0.1:8788</code> (DeskAgent uses 8787). <code>desk.sh</code> kills a stale listener first.</p>
+        </article>
+        <article class="card">
+          <h3>Tests</h3>
+          <p><code>test_serve.py</code> uses a temp <code>var/</code> (<code>CLAIMDESK_VAR</code>). Locks queue to engine, ask refuse, confirm CL-03, reject confirm CL-04, log has no amounts.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="bot">
+      <h2>Grok Bot — Intake Clerk</h2>
+      <p>
+        Plus, not a replacement for Grok Build. Named teammate.
+        For the 20-second demo it is a <strong>briefed teammate</strong>, not a second log writer.
+        Only laptop <code>POST /api/confirm</code> mints a claim number.
+        If the table actually runs the script on a cloud computer, stage <code>data/fnol.json</code>, <code>md/policy-excerpt.md</code>, and <code>python/decide.py</code> first.
+      </p>
+      <div class="callout bot">
+        <p><strong>Paste-ready brief</strong></p>
+        <pre style="margin:0.6rem 0 0">Name: Intake Clerk
+Title: Claim intake night watch
+Description: Re-run the claim-intake script on data/fnol.json. The only rule source is md/policy-excerpt.md via lookup_rule. For each report return open, hold for photos, or refuse, and quote the policy line. Never state a payout or settlement amount. Never give medical or legal advice. CL-03 glass stays open and waits for the clerk to click before a claim number exists. CL-04 flood stays refused and is logged on the laptop, not sent. Hold for photos waits for the clerk. Off-scope questions are refused. Notes on the Bot if needed; never write GrokHackathon/var/; never mint FNOL-…. If anything would send, spend, delete, or name money, stop and ask for a yes.</pre>
+      </div>
+      <p class="note" style="margin-top:0.8rem">
+        Auto Review deny-list: send, spend, delete, payout language, invented rules.
+        “Block send” matches “does not mint.” Demo beat: ~20 seconds after live CL-03 / CL-04.
+      </p>
+    </section>
+
+    <section id="must-show">
+      <h2>Must-show laptop map</h2>
+      <p>Track list plus website and Bot. Plugin is optional on the page; this table still ships one. Live-ops (confirm/undo/log) is not optional on the scorecard.</p>
+      <table>
+        <thead>
+          <tr><th>Checkbox</th><th>Path in this repo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>inspect</td><td><code>lab-plan.md</code> §1</td></tr>
+          <tr><td>plan</td><td><code>lab-plan.md</code> and <code>md/PLAN.md</code></td></tr>
+          <tr><td>AGENTS.md</td><td><code>AGENTS.md</code></td></tr>
+          <tr><td>skill</td><td><code>.grok/skills/review-fnol/SKILL.md</code> — <code>/review-fnol</code></td></tr>
+          <tr><td>hook</td><td><code>.grok/hooks/protect-rules.json</code> → <code>python/protect_rules.py</code></td></tr>
+          <tr><td>MCP lookup_rule</td><td><code>python/rules_mcp.py</code> + <code>.grok/config.toml</code></td></tr>
+          <tr><td>plugin</td><td><code>.grok/plugins/fnol-desk/</code></td></tr>
+          <tr><td>script</td><td><code>bin/run.sh</code> (engine <code>python/decide.py</code>)</td></tr>
+          <tr><td>test</td><td><code>python/test_desk.py</code> — <strong>CL-04 stays refused</strong></td></tr>
+          <tr><td>website</td><td><code>bin/desk.sh</code> → http://127.0.0.1:8788/</td></tr>
+          <tr><td><span class="tag bot-tag">Bot plus</span></td><td>Intake Clerk brief in README</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Golden cases (named outcomes, not invented quotes)</h3>
+      <table>
+        <thead><tr><th>Id</th><th>Track fact</th><th>Engine</th><th>Live-ops</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>CL-03</td>
+            <td>Glass → open · <code>PX-GLASS</code></td>
+            <td><span class="tag open">open</span> + quote from file</td>
+            <td>Waits for confirm before a claim number</td>
+          </tr>
+          <tr>
+            <td>CL-04</td>
+            <td>Flood → refuse · scoring case · <code>PX-FLOOD</code></td>
+            <td><span class="tag refuse">refuse</span> + quote from file</td>
+            <td>Logged, not sent</td>
+          </tr>
+          <tr>
+            <td>Ask</td>
+            <td>No response states a payout</td>
+            <td><span class="tag refuse">refuse</span></td>
+            <td>Not a send</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Win demo order</h3>
+      <ol class="steps">
+        <li>Name the track in one sentence, including Bot: “Claim intake. Open, hold, or refuse against the policy excerpt. Never a payout. A Grok Bot keeps the queue after we close the laptop.”</li>
+        <li>CL-03 → open. Quote the glass line from <code>md/policy-excerpt.md</code>.</li>
+        <li>CL-04 → refuse. Quote the flood exclusion. Name the scoring case.</li>
+        <li>Point at AGENTS.md, skill, hook, MCP <code>lookup_rule</code>, then Intake Clerk (wait-for-yes, no payout).</li>
+        <li>Stop. Questions from judges only.</li>
+      </ol>
+    </section>
+
+    <section id="went-live">
+      <h2>If this went live</h2>
+      <p class="lead">Three sentences judges ask. Shown in the website, not only spoken.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>1. Who clicks before it sends</h3>
+          <p>The intake clerk. <code>open</code> and <code>hold for photos</code> stay draft until that human confirms. The engine never mints a claim number by itself. Refuse is logged, not sent — no click, no claim number.</p>
+        </article>
+        <article class="card">
+          <h3>2. How you undo a bad change</h3>
+          <p>Revert the report to draft. The claim number is cleared. History is appended, not deleted. Kit files roll back with git. The hook already refuses edits to <code>md/policy-excerpt.md</code>.</p>
+        </article>
+        <article class="card">
+          <h3>3. What you write in a log</h3>
+          <p>Claim id, decision (open / hold / refuse), verbatim policy quote, timestamp, optional claim number. No amount.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="alternatives">
+      <h2>Alternatives considered</h2>
+      <table>
+        <thead><tr><th>#</th><th>Option</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Chat-only Grok skill, no Python engine</td>
+            <td>Fails script + test + website. Rejected.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Static HTML with hard-coded open/refuse</td>
+            <td>Fails “quotes the file.” DeskAgent already forbade this. Rejected.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Clone DeskAgent engine + web + Grok surfaces + Bot</td>
+            <td><strong>Chosen.</strong> Every must-show maps to a known file.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Grok Bot as the only runtime</td>
+            <td>Fails laptop Grok Build must-show. Bot is plus only.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Create a <code>ClaimDesk/</code> subfolder and copy the kit</td>
+            <td>Rejected. Kit was already here. Implement in place under this repo.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security, observability, rollout</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Security</h3>
+          <p>No real customer data. Fictional FNOL only. No payouts. Hook blocks <code>md/policy-excerpt.md</code> and extra <code>*rules.md</code>. Bot Auto Review blocks send/spend/delete/money. Bind <code>127.0.0.1</code> only. Stdlib; no network to decide.</p>
+        </article>
+        <article class="card">
+          <h3>Observability</h3>
+          <p>JSONL log with no amounts. <code>/api/health</code>. Tests as golden oracle. <code>bin/demo.sh</code> prints CL-03, CL-04, payout-ask refuse, unittest, MCP hit+miss. Decide all reports &lt; 1s.</p>
+        </article>
+        <article class="card">
+          <h3>Rollout / undo</h3>
+          <p>Inspect first. Plan accepted. Then PRs. Rollback = <code>git checkout</code> kit files. Hook already blocks rule edits. Busy port: <code>desk.sh</code> kills the old listener.</p>
+        </article>
+        <article class="card">
+          <h3>Open questions</h3>
+          <p>Schema resolved. Remaining: Bot entitlement on workshop logins. Bot is a brief unless files are staged. 20/20 is a derived ceiling, not a judge promise. Docs do not replace the live demo.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>Key decisions</h2>
+      <table>
+        <thead><tr><th>#</th><th>Decision</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Clone DeskAgent; do not invent a new architecture</td><td>4.3 is a label mapping of Module 3. Fastest must-show.</td></tr>
+          <tr><td>2</td><td>Product root is this repo; kit stays in <code>data/</code> and <code>md/</code></td><td>Inspect stays kit-clean. Do not contaminate DeskAgent. Do not invent <code>ClaimDesk/</code>.</td></tr>
+          <tr><td>3</td><td><code>python/decide.py</code> is the only decision memory</td><td>Static JS already failed once in DeskAgent research.</td></tr>
+          <tr><td>4</td><td>Parse the kit; never hard-code policy bodies as a second book</td><td><code>PX-*</code> ids exist in the file and are parse keys. Invented ids fail.</td></tr>
+          <tr><td>5</td><td>MCP is <code>python/rules_mcp.py</code> only; no root shim</td><td>Parent-walk + pin <code>md/policy-excerpt.md</code>. Register <code>python3 python/rules_mcp.py</code>.</td></tr>
+          <tr><td>6</td><td>Labels <code>open</code> / <code>hold</code> / <code>refuse</code></td><td>Track page wording, not PA Approve/Deny.</td></tr>
+          <tr><td>7</td><td>Only laptop <code>POST /api/confirm</code> mints</td><td>Engine recommends. Bot does not mint. Refuse never sends.</td></tr>
+          <tr><td>8</td><td>JSONL log with no amounts</td><td>Live-ops question. Payout language zeros Decisions.</td></tr>
+          <tr><td>9</td><td>Intake Clerk is a first-class container, not the runtime</td><td>Bot is a plus. Grok Build still required on the laptop.</td></tr>
+          <tr><td>10</td><td>Plugin ships even though optional</td><td>If the clock dies, prefer PR-3 over plugin polish.</td></tr>
+          <tr><td>11</td><td>Original FNOL UI; no Alder chrome</td><td>Copying demo HTML fails Module 3. Alder names are not FNOL data.</td></tr>
+          <tr><td>12</td><td>CL-08 hold is implemented, pocketed in the demo</td><td>Collision is hold-only when photos are false. Do not invent open-collision.</td></tr>
+          <tr><td>13</td><td>Stdlib only, bind 127.0.0.1, port 8788</td><td>No pip. Do not collide with DeskAgent 8787.</td></tr>
+          <tr><td>14</td><td>Off-scope message is product copy, not a fake rule id</td><td>Payout cites <code>PX-NO-PAY</code>. Off-desk <code>rule_id</code> is null.</td></tr>
+          <tr><td>15</td><td>Tests lock outcomes and verbatim-in-file</td><td>CL-04 is the scoring case. Serve tests use temp <code>var/</code>.</td></tr>
+          <tr><td>16</td><td>MCP pins <code>md/policy-excerpt.md</code> + parent-walk</td><td>A root <code>ROOT = HERE</code> stub would miss the file. Smoke <code>python3 python/rules_mcp.py</code>.</td></tr>
+          <tr><td>17</td><td>Refuse logging is <code>ensure_state</code> not GET</td><td>GET is read-only. Bot is not a second writer. <code>refuse_logged</code> is the flag.</td></tr>
+          <tr><td>18</td><td>Cover-id lookup, not token scan</td><td>Lookup <code>cover</code> in <code>load_policy()</code> then the flowchart. Unknown cover → no-match. No <code>first_matching</code> in PR-1.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="prs">
+      <h2>PR / implementation slice plan</h2>
+      <p>Same-day hackathon. Each PR independently reviewable. Do not start engine code before inspect notes exist.</p>
+      <div class="mermaid">
+flowchart TD
+  pr1["PR-1 kit + engine + test"] --> pr2["PR-2 Grok surfaces"]
+  pr1 --> pr3["PR-3 website + confirm/undo/log"]
+  pr1 --> pr4["PR-4 Bot + demo.sh"]
+  pr4 --> pr5["PR-5 docs / laptop show"]
+      </div>
+      <table>
+        <thead>
+          <tr><th>PR</th><th>Title</th><th>Files</th><th>Depends</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PR-1</td>
+            <td><code>feat(engine): CL-03 open, CL-04 refuse, quotes from policy-excerpt.md</code></td>
+            <td>Inspect kit in place, constitution, <code>decide.py</code>, <code>test_desk.py</code>, <code>bin/run.sh</code></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>PR-2</td>
+            <td><code>feat(grok): review-fnol skill, hook, pin MCP, fnol-desk plugin</code></td>
+            <td>Parent-walk + pin MCP, skill, hook, thin plugin. No root shim.</td>
+            <td>PR-1</td>
+          </tr>
+          <tr>
+            <td>PR-3</td>
+            <td><code>feat(web): FNOL desk UI on serve_desk.py with confirm-before-send</code></td>
+            <td><code>serve_desk.py</code>, <code>web/*</code>, <code>test_serve.py</code>, <code>bin/desk.sh</code>, <code>var/</code></td>
+            <td>PR-1 (parallel to PR-2)</td>
+          </tr>
+          <tr>
+            <td>PR-4</td>
+            <td><code>feat(bot): Intake Clerk brief, Auto Review deny-list, bin/demo.sh</code></td>
+            <td>README brief, <code>bin/demo.sh</code>, AGENTS Bot note. Does not mint.</td>
+            <td><strong>PR-1</strong> (hard). 2+3 optional.</td>
+          </tr>
+          <tr>
+            <td>PR-5</td>
+            <td><code>docs: c4 twin, lab-report, SDD spec pack, README laptop map</code></td>
+            <td><code>docs/*</code>, <code>SDD/*</code>, README polish</td>
+            <td>PR-1–4</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">
+        Keep PR-1 first. If the clock dies after PR-1, prefer <strong>PR-3 over plugin polish</strong>
+        (live-ops is on the scorecard; plugin is optional on the track page).
+        Target is all five. Do not skip PR-1 tests.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    Canonical markdown: design id <code>c1c2b545</code>.
+    Twin of <a href="design.html">docs/design.html</a>. Open this file in a browser.
+    Kit: <code>data/fnol.json</code> and <code>md/policy-excerpt.md</code>. Python under <code>python/</code>. Port 8788.
+    Do not invent policy quotes. Scoring case: CL-04. Docs do not replace the live demo.
+  </footer>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const nodes = document.querySelectorAll(".mermaid");
+      await mermaid.run({ nodes, suppressErrors: false });
+      for (const el of nodes) {
+        if (el.querySelector("svg") && !/Syntax error/i.test(el.textContent)) continue;
+        const pre = document.createElement("pre");
+        pre.className = "mermaid-error";
+        pre.textContent = "Diagram failed to render. Reload the page. If it persists, the source is in this box.\n\n" + (el.getAttribute("data-src") || el.textContent.trim());
+        if (!el.querySelector("svg") || /Syntax error/i.test(el.textContent)) {
+          el.replaceChildren(pre);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

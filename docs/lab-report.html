@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lab report — Must-show checklist evaluation</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --paper: #f4f6f8;
+      --card: #fff;
+      --pass: #166534;
+      --pass-bg: #dcfce7;
+      --accent: #1d4ed8;
+      --warn: #92400e;
+      --deny: #991b1b;
+      --bot: #6d28d9;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.55 "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    header {
+      background: var(--ink);
+      color: #fff;
+      padding: 2.1rem 1.5rem 1.4rem;
+    }
+    header .kicker {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: #93c5fd;
+    }
+    header p { color: #cbd5e1; max-width: 80ch; }
+    .verdict {
+      display: inline-block;
+      margin-top: 0.6rem;
+      background: var(--pass);
+      color: #fff;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem 0.9rem;
+      padding: 0.65rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    nav a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 1080px; margin: 0 auto; padding: 1.4rem 1.5rem 3rem; }
+    h2 { border-bottom: 2px solid var(--ink); padding-bottom: 0.3rem; }
+    h3 { color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid var(--line); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+    th { background: #e2e8f0; }
+    .pass {
+      display: inline-block;
+      background: var(--pass-bg);
+      color: var(--pass);
+      font-weight: 700;
+      padding: 0.05rem 0.45rem;
+      border-radius: 6px;
+    }
+    .bot-tag {
+      display: inline-block;
+      background: #ede9fe;
+      color: var(--bot);
+      font-weight: 700;
+      padding: 0.05rem 0.45rem;
+      border-radius: 6px;
+    }
+    .item {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.1rem 1.2rem 1.3rem;
+      margin: 1.4rem 0 1.8rem;
+    }
+    .item header.item-h {
+      background: transparent;
+      color: inherit;
+      padding: 0 0 0.6rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .item header.item-h h2 {
+      margin: 0;
+      border: 0;
+      font-size: 1.35rem;
+    }
+    .meta { color: var(--muted); font-size: 0.92rem; }
+    pre, code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.9rem 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.8rem;
+    }
+    .card {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.8rem 0.9rem;
+    }
+    .card h4 { margin: 0 0 0.35rem; }
+    .callout {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      max-width: 85ch;
+    }
+    footer { color: var(--muted); padding: 0 1.5rem 2rem; font-size: 0.9rem; }
+    @media print {
+      nav { display: none; }
+      header { background: #fff; color: #000; }
+      .item { break-inside: avoid; }
+      pre { background: #f1f5f9; color: #0f172a; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="kicker">Grok Enablement Workshop · Module 4.3 · Claim intake</div>
+    <h1>Lab report: Must-show checklist</h1>
+    <p>
+      Evaluation of the rebuilt FNOL claim-intake desk against the track checklist.
+      Kit files were inspected first. The desk quotes <code>md/policy-excerpt.md</code>,
+      never states a payout, and logs CL-04 refuse instead of sending.
+      This page is a pointer with evidence paths. It does not replace the live demo.
+    </p>
+    <div class="verdict">Verdict: track must-show met · website + Bot shipped</div>
+  </header>
+
+  <nav>
+    <a href="#scorecard">Scorecard</a>
+    <a href="#done-when">Done when</a>
+    <a href="#ms-inspect">Inspect</a>
+    <a href="#ms-agents">AGENTS.md</a>
+    <a href="#ms-plan">Plan</a>
+    <a href="#ms-skill">Skill</a>
+    <a href="#ms-hook">Hook</a>
+    <a href="#ms-mcp">MCP</a>
+    <a href="#ms-plugin">Plugin</a>
+    <a href="#ms-script">Script</a>
+    <a href="#ms-test">Test</a>
+    <a href="#ms-web">Website</a>
+    <a href="#ms-bot">Bot</a>
+    <a href="#show">Laptop show</a>
+  </nav>
+
+  <main>
+    <section id="scorecard">
+      <h2>Checklist scorecard</h2>
+      <p>
+        Source: track page “Must show” list plus website and Intake Clerk.
+        Each row has an evidence path. Run the script; do not treat this HTML as the demo.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Must show</th>
+            <th>Lab wording</th>
+            <th>Evidence path</th>
+            <th>Eval</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><a href="#ms-inspect">inspect</a></td>
+            <td>Look at the folder before writing files</td>
+            <td><code>lab-plan.md</code> §1 — kit inventory first; kit bodies not rewritten</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><a href="#ms-agents">AGENTS.md</a></td>
+            <td>Short rules file for Grok Build</td>
+            <td><code>AGENTS.md</code> — kit-only rules, quote, no payout, MCP lookup</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><a href="#ms-plan">plan</a></td>
+            <td>Agree a plan before it writes files</td>
+            <td><code>lab-plan.md</code> · <code>md/PLAN.md</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><a href="#ms-skill">a skill</a></td>
+            <td>Short how-to file Grok Build reads</td>
+            <td><code>.grok/skills/review-fnol/SKILL.md</code> — slash <code>/review-fnol</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><a href="#ms-hook">a hook</a></td>
+            <td>Check that runs before Grok Build does something</td>
+            <td>PreToolUse → <code>python/protect_rules.py</code> (blocks <code>md/policy-excerpt.md</code>)</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td><a href="#ms-mcp">MCP lookup_rule</a></td>
+            <td>Tool that reads the rule file</td>
+            <td><code>python/rules_mcp.py</code> as project server <code>rules</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td><a href="#ms-plugin">a plugin</a></td>
+            <td>Skill + hook + MCP packed together (optional)</td>
+            <td><code>.grok/plugins/fnol-desk/</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td><a href="#ms-script">a script you can run again</a></td>
+            <td>Repeatable surface</td>
+            <td><code>python/decide.py</code> · <code>bin/run.sh</code> · <code>bin/demo.sh</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td><a href="#ms-test">a test</a></td>
+            <td>The three reports still decide the same way</td>
+            <td><code>python/test_desk.py</code> + <code>python/test_serve.py</code> — 30 tests OK</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td><a href="#ms-web">website</a></td>
+            <td>If this went live: who clicks, undo, log</td>
+            <td><code>bin/desk.sh</code> → http://127.0.0.1:8788/ · <code>python/serve_desk.py</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td><a href="#ms-bot">Bot</a></td>
+            <td>Intake Clerk, wait-for-yes, never mint</td>
+            <td>README brief · Auto Review deny-list · no <code>var/</code> writes</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="meta">
+        Folder trust is required before Grok loads project AGENTS.md, the skill, the hook, and the plugin.
+        Until then those files still exist on disk and can be shown. MCP <code>rules</code> is in
+        <code>.grok/config.toml</code>.
+      </p>
+    </section>
+
+    <section id="done-when">
+      <h2>Lab “You are done when”</h2>
+      <p>The track also requires these outcomes, not only the must-show list.</p>
+      <table>
+        <thead>
+          <tr><th>Finish-line item</th><th>Evidence</th><th>Eval</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CL-03 → open, quote PX-GLASS</td>
+            <td><code>python3 python/decide.py CL-03</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>CL-04 → refuse, quote PX-FLOOD (scoring case)</td>
+            <td><code>python3 python/decide.py CL-04</code> — photos true still refuse</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>No response states a payout</td>
+            <td><code>--advice "will we pay?"</code> → refuse / PX-NO-PAY; tests scan for promised amounts</td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td>You can show the list above on the laptop</td>
+            <td>This report + paths in each item + <code>bin/demo.sh</code></td>
+            <td><span class="pass">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout" style="margin-top:1rem">
+        <strong>Live demo order.</strong> Name the track. Show CL-03 open. Show CL-04 refuse.
+        Point at AGENTS.md, skill, hook, MCP, Intake Clerk. Stop.
+        Do not walk this HTML instead of running the desk.
+      </div>
+    </section>
+
+    <article class="item" id="ms-inspect">
+      <header class="item-h">
+        <h2>1. inspect — look at the folder before writing files</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>What the lab asks.</strong> Look at the kit folder before writing files. Do not copy demo HTML. Do not rewrite kit bodies.</p>
+      <p><strong>What we did.</strong> Kit was already on disk. Inventory went into <code>lab-plan.md</code> §1 before the engine, skill, hook, website, or Bot brief.</p>
+      <div class="grid">
+        <div class="card">
+          <h4>Kit seen on inspect</h4>
+          <ul>
+            <li><code>data/fnol.json</code> — three FNOL reports</li>
+            <li><code>md/policy-excerpt.md</code> — only rule book</li>
+            <li><code>python/rules_mcp.py</code> — <code>list_rules</code> / <code>lookup_rule</code></li>
+            <li><code>docs/</code> briefing HTML (design, plan, scoring)</li>
+            <li><code>md/PLAN.md</code> executable PR DAG</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Constraints recorded</h4>
+          <ul>
+            <li>Do not edit <code>md/policy-excerpt.md</code></li>
+            <li>Do not invent a second rule file</li>
+            <li>Made-up rules fail the lab</li>
+            <li>No claimant names, vehicles, or payout amounts in the kit</li>
+          </ul>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Id</th><th>peril</th><th>photos</th><th>cover</th><th>Decision</th></tr></thead>
+        <tbody>
+          <tr><td>CL-03</td><td>glass</td><td>true</td><td>PX-GLASS</td><td>open</td></tr>
+          <tr><td>CL-04</td><td>flood</td><td>true</td><td>PX-FLOOD</td><td>refuse (scoring)</td></tr>
+          <tr><td>CL-08</td><td>collision</td><td>false</td><td>PX-COLLISION</td><td>hold for photos</td></tr>
+        </tbody>
+      </table>
+      <p><strong>How to show.</strong> Open <code>lab-plan.md</code> §1. Point at <code>data/fnol.json</code> and <code>md/policy-excerpt.md</code>. Say they were not overwritten.</p>
+    </article>
+
+    <article class="item" id="ms-agents">
+      <header class="item-h">
+        <h2>2. AGENTS.md — short rules file for Grok Build</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> <code>AGENTS.md</code> at repo root.</p>
+      <pre>The only rule book is md/policy-excerpt.md.
+Report data is data/fnol.json.
+Call MCP lookup_rule (server rules). Do not skip this.
+CL-03 glass, photos true → open, cite PX-GLASS
+CL-04 flood, photos true → refuse, cite PX-FLOOD
+CL-08 collision, photos false → hold, cite PX-COLLISION
+Payout-family ask → refuse. Cite PX-NO-PAY.
+Never write "we will pay" or name a settlement amount.</pre>
+      <p><strong>How to show.</strong> Open <code>AGENTS.md</code>. After folder trust, Grok lists it under Project Instructions.</p>
+    </article>
+
+    <article class="item" id="ms-plan">
+      <header class="item-h">
+        <h2>3. plan — agree a plan before it writes files</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> <code>lab-plan.md</code> (agreed rebuild) and <code>md/PLAN.md</code> (PR DAG). Spec-driven extra: <code>SDD/plan.md</code>.</p>
+      <div class="grid">
+        <div class="card">
+          <h4>Agreed before generation</h4>
+          <ul>
+            <li>Cover-id lookup, not token scan</li>
+            <li>Flood before photos (CL-04 still refuses)</li>
+            <li>Collision is hold-only; no open-collision path</li>
+            <li>File map: engine, Grok surfaces, website, Bot, docs</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Out of scope</h4>
+          <ul>
+            <li>Rewrite kit JSON/MD bodies</li>
+            <li>Root <code>rules_mcp.py</code> shim</li>
+            <li>Alder names or workshop demo HTML</li>
+            <li>Stating a payout</li>
+          </ul>
+        </div>
+      </div>
+      <p><strong>How to show.</strong> Open <code>lab-plan.md</code> §1 then §5. Point at <code>md/PLAN.md</code> PR-1 through PR-5.</p>
+    </article>
+
+    <article class="item" id="ms-skill">
+      <header class="item-h">
+        <h2>4. a skill — short how-to file Grok Build reads</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> <code>.grok/skills/review-fnol/SKILL.md</code>. Slash <code>/review-fnol</code>. Duplicate inside the plugin pack.</p>
+      <ol>
+        <li>Payout ask → <code>lookup_rule</code> PX-NO-PAY → “The desk does not state a payout.” Stop.</li>
+        <li>Medical/legal → no rule id, <code>No rule line matched.</code> Stop.</li>
+        <li>Read the report in <code>data/fnol.json</code>.</li>
+        <li>Call MCP <code>lookup_rule</code> on the cover id. Quote the exact matching line.</li>
+        <li>Flood refuse, photos-false hold, glass open. Chat must match <code>python3 python/decide.py &lt;id&gt;</code>.</li>
+      </ol>
+      <p><strong>How to show.</strong> Open the SKILL.md. In a trusted Grok session type <code>/review-fnol CL-03</code>.</p>
+    </article>
+
+    <article class="item" id="ms-hook">
+      <header class="item-h">
+        <h2>5. a hook — check that runs before Grok Build does something</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> Registration <code>.grok/hooks/protect-rules.json</code>. Body <code>python/protect_rules.py</code>. Event PreToolUse before write/edit/shell.</p>
+      <pre>Matcher: Write|Edit|MultiEdit|search_replace|write|Bash|run_terminal_command
+Command: python3 python/protect_rules.py
+
+Deny md/policy-excerpt.md:
+  {"decision":"deny","reason":"md/policy-excerpt.md is the given rule book.
+   Do not edit it. Do not invent rules. Made-up rules fail the lab."}
+
+Deny extra *rules.md / payer_rules.md. Allow other files.</pre>
+      <p><strong>Smoke (already run).</strong> Write to <code>md/policy-excerpt.md</code> → deny, exit 2. Write to <code>python/decide.py</code> → allow, exit 0. Locked in <code>python/test_desk.py</code> hook tests.</p>
+      <p><strong>How to show.</strong> Open the JSON + Python. After <code>/hooks-trust</code>, ask Grok to edit the policy excerpt and show the deny.</p>
+    </article>
+
+    <article class="item" id="ms-mcp">
+      <header class="item-h">
+        <h2>6. MCP lookup_rule — tool that reads the rule file</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> <code>python/rules_mcp.py</code> pinned to <code>md/policy-excerpt.md</code>. Project server in <code>.grok/config.toml</code>.</p>
+      <pre>grok mcp add --scope project rules -- python3 python/rules_mcp.py</pre>
+      <table>
+        <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>list_rules</code></td><td>List headings from the local rule file</td></tr>
+          <tr><td><code>lookup_rule</code></td><td>Return lines that mention the query. Miss: <code>No rule line matched '…'.</code></td></tr>
+        </tbody>
+      </table>
+      <h3>Verified lookup</h3>
+      <pre>lookup_rule query=flood
+→ PX-FLOOD. Flood is excluded. Return Refuse and quote this rule.
+
+lookup_rule query=made-up-rule
+→ No rule line matched 'made-up-rule'.</pre>
+      <p><strong>How to show.</strong> <code>grok mcp list</code> then <code>bin/run.sh mcp</code> or <code>bin/demo.sh</code>.</p>
+    </article>
+
+    <article class="item" id="ms-plugin">
+      <header class="item-h">
+        <h2>7. a plugin — skill + hook + MCP packed together</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p>Optional on the track page. Shipped so the laptop has one folder to point at.</p>
+      <table>
+        <thead><tr><th>Plugin piece</th><th>Path</th></tr></thead>
+        <tbody>
+          <tr><td>Manifest</td><td><code>.grok/plugins/fnol-desk/plugin.json</code></td></tr>
+          <tr><td>Skill</td><td><code>.grok/plugins/fnol-desk/skills/review-fnol/SKILL.md</code></td></tr>
+          <tr><td>Hook</td><td><code>.grok/plugins/fnol-desk/hooks/hooks.json</code></td></tr>
+          <tr><td>MCP</td><td><code>.grok/plugins/fnol-desk/.mcp.json</code> → <code>python3 python/rules_mcp.py</code></td></tr>
+        </tbody>
+      </table>
+      <p><code>.grok/config.toml</code> lists <code>[plugins] enabled = ["fnol-desk"]</code>.</p>
+    </article>
+
+    <article class="item" id="ms-script">
+      <header class="item-h">
+        <h2>8. a script you can run again</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> Oracle <code>python/decide.py</code>. Case runner <code>bin/run.sh</code>. Walkthrough <code>bin/demo.sh</code>.</p>
+      <pre>python3 python/decide.py
+python3 python/decide.py CL-03
+python3 python/decide.py CL-04
+python3 python/decide.py CL-08
+python3 python/decide.py --advice "will we pay?"
+bin/run.sh
+bin/demo.sh</pre>
+      <h3>Re-run on this evaluation (2026-09-18)</h3>
+      <table>
+        <thead><tr><th>Case</th><th>Decision</th><th>Cited</th><th>Quote from md/policy-excerpt.md?</th></tr></thead>
+        <tbody>
+          <tr><td>CL-03 glass photos true</td><td>open</td><td>PX-GLASS</td><td>Yes — glass breakage in force</td></tr>
+          <tr><td>CL-04 flood photos true</td><td>refuse</td><td>PX-FLOOD</td><td>Yes — flood excluded</td></tr>
+          <tr><td>CL-08 collision photos false</td><td>hold for photos</td><td>PX-COLLISION</td><td>Yes — collision needs photos</td></tr>
+          <tr><td>advice: will we pay?</td><td>refuse</td><td>PX-NO-PAY</td><td>Yes — plus “The desk does not state a payout.”</td></tr>
+        </tbody>
+      </table>
+      <p><strong>How to show.</strong> Run <code>bin/demo.sh</code> live. Point at <code>python/decide.py</code> as the engine.</p>
+    </article>
+
+    <article class="item" id="ms-test">
+      <header class="item-h">
+        <h2>9. a test — the three reports still decide the same way</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p><strong>Evidence.</strong> <code>python/test_desk.py</code> drives <code>python/decide.py --json</code> as a subprocess. <code>python/test_serve.py</code> locks the website API to the same engine on a temp <code>var/</code>.</p>
+      <pre>python3 -m unittest python.test_desk python.test_serve
+# Ran 30 tests in 0.74s
+# OK</pre>
+      <table>
+        <thead><tr><th>Locked</th><th>File</th></tr></thead>
+        <tbody>
+          <tr><td>CL-03 open / PX-GLASS; CL-04 refuse / PX-FLOOD; CL-08 hold / PX-COLLISION</td><td><code>python/test_desk.py</code></td></tr>
+          <tr><td>Quotes substring of <code>md/policy-excerpt.md</code>; no promised amount</td><td><code>python/test_desk.py</code></td></tr>
+          <tr><td>Payout “will we pay?” → PX-NO-PAY; medical/legal → no-match</td><td><code>python/test_desk.py</code></td></tr>
+          <tr><td>No open-collision path; hook denies policy edit</td><td><code>python/test_desk.py</code></td></tr>
+          <tr><td>Queue matches engine; CL-03 confirm then undo; CL-04 confirm 400</td><td><code>python/test_serve.py</code></td></tr>
+          <tr><td>Log has no amount / payout / <code>$</code> keys</td><td><code>python/test_serve.py</code></td></tr>
+        </tbody>
+      </table>
+      <p><strong>How to show.</strong> <code>bin/run.sh test</code> or the unittest line above. If a golden label or quote drifts, this fails.</p>
+    </article>
+
+    <article class="item" id="ms-web">
+      <header class="item-h">
+        <h2>Local website — UI invokes the Python backend</h2>
+        <span class="pass">PASS</span>
+      </header>
+      <p>Live-ops is on the scorecard: who clicks before it sends, undo, log with no amounts. The page is not a second rule book.</p>
+      <table>
+        <thead><tr><th>Layer</th><th>Path</th><th>Does it decide?</th></tr></thead>
+        <tbody>
+          <tr><td>UI</td><td><code>web/index.html</code>, <code>web/desk.js</code>, <code>web/desk.css</code></td><td>No. Fetches JSON and paints.</td></tr>
+          <tr><td>Backend</td><td><code>python/serve_desk.py</code> via <code>bin/desk.sh</code></td><td>No. Forwards to the engine. Bind 127.0.0.1:8788.</td></tr>
+          <tr><td>Engine</td><td><code>python/decide.py</code></td><td>Yes. Reads kit files.</td></tr>
+        </tbody>
+      </table>
+      <pre>Browser
+  GET  /api/queue    →  serve_desk.py  →  decide.py  →  data/fnol.json + md/policy-excerpt.md
+  POST /api/ask      →  serve_desk.py  →  decide.py  →  PX-NO-PAY / no-match
+  POST /api/confirm  →  mint FNOL-… on open only; CL-04 → 400 {"error":"refuse is not sent"}
+  POST /api/undo     →  back to draft; history appended
+  GET  /api/log      →  JSONL, no amounts
+  GET  /api/health   →  paths to policy, reports, engine</pre>
+      <p><strong>How to show.</strong> <code>bin/desk.sh</code>, then http://127.0.0.1:8788/. Click CL-03 Confirm. Try CL-04 Confirm (stays refused). Ask “will we pay?”.</p>
+    </article>
+
+    <article class="item" id="ms-bot">
+      <header class="item-h">
+        <h2>Grok Bot — Intake Clerk</h2>
+        <span class="bot-tag">PLUS</span>
+      </header>
+      <p>Plus, not a replacement for Grok Build. Paste-ready brief in <code>README.md</code>. Auto Review deny-list: send, spend, delete, payout language, invented rules.</p>
+      <ul>
+        <li>Does not mint <code>FNOL-…</code>.</li>
+        <li>Does not write <code>var/</code>.</li>
+        <li>Laptop <code>POST /api/confirm</code> is the only mint.</li>
+        <li>CL-03 stays open until the clerk clicks. CL-04 stays refused and is logged on the laptop, not sent.</li>
+      </ul>
+      <p><strong>How to show.</strong> Scroll the README brief. Say wait-for-yes. Do not treat the Bot as a second engine.</p>
+    </article>
+
+    <section id="show">
+      <h2>How to show the whole list on the laptop</h2>
+      <p>Docs do not replace the live demo. Run, then point.</p>
+      <ol>
+        <li>Inspect: <code>lab-plan.md</code> §1 and the kit files.</li>
+        <li>Plan: same file plus <code>md/PLAN.md</code>.</li>
+        <li>AGENTS.md: repo root.</li>
+        <li>Skill: <code>.grok/skills/review-fnol/SKILL.md</code> · slash <code>/review-fnol</code>.</li>
+        <li>Hook: <code>.grok/hooks/protect-rules.json</code>.</li>
+        <li>MCP: <code>grok mcp list</code> then <code>bin/run.sh mcp</code>.</li>
+        <li>Plugin: <code>.grok/plugins/fnol-desk/</code>.</li>
+        <li>Script: <code>bin/run.sh</code> / <code>bin/demo.sh</code> (engine <code>python/decide.py</code>).</li>
+        <li>Test: <code>python3 -m unittest python.test_desk python.test_serve</code>.</li>
+        <li>Website: <code>bin/desk.sh</code> → http://127.0.0.1:8788/</li>
+        <li>Bot: Intake Clerk brief in <code>README.md</code>.</li>
+      </ol>
+      <p>
+        Trust the folder when Grok asks (<code>/hooks-trust</code> or <code>grok --trust</code>)
+        so AGENTS.md, the skill, the hook, and the plugin actually load in chat.
+      </p>
+      <p class="meta">
+        Related: <a href="c4.html">c4.html</a> (C4 design),
+        <a href="design.html">design.html</a> (HLD/LLD),
+        <a href="../README.md">README.md</a> (laptop map + Bot brief),
+        <a href="../SDD/spec.md">SDD/spec.md</a> (spec-driven pack),
+        <a href="../SDD/quickstart.md">SDD/quickstart.md</a> (run → test → MCP → desk.sh → Bot).
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    Lab report for Module 4.3 claim intake. Kit files remain the only source of rules.
+    Scoring case: CL-04 refuse / PX-FLOOD. Docs do not replace the live demo.
+  </footer>
+</body>
+</html>
