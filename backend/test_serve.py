@@ -68,7 +68,14 @@ class ServeTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls._old_var = os.environ.get("CLAIMDESK_VAR")
         os.environ["CLAIMDESK_VAR"] = cls.tmp.name
-        cls.app = DeskApp(llm=AutoLookupClerk())
+        cls.app = DeskApp(
+            llm=AutoLookupClerk(),
+            vision=lambda **kw: {
+                "match": True,
+                "text": "MATCH. Test double sees the needed photo.",
+                "needed": kw.get("needed") or "",
+            },
+        )
         cls.server, _ = make_server("127.0.0.1", 0, app=cls.app)
         cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -185,6 +192,8 @@ class ServeTests(unittest.TestCase):
         row = next(item for item in queue["items"] if item["id"] == "CL-08")
         self.assertTrue(row["photos"])
         self.assertEqual(row["files"][0]["name"], "bumper.jpg")
+        self.assertTrue(payload["file"]["check"]["match"])
+        self.assertTrue(payload["file"]["check"]["text"].startswith("MATCH."))
 
     def test_upload_rejects_unknown_report(self) -> None:
         status, payload = self._upload("CL-99", "x.jpg", b"abc")

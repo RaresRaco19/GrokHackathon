@@ -209,6 +209,7 @@
     ask_refused: "Ask refused",
     assess: "Assessed",
     upload: "File added",
+    photo_check: "Photo check",
   };
 
   function logMarkup(events, opts) {
@@ -544,12 +545,17 @@
     const files = r.files || [];
     const items = files.length
       ? `<ul class="file-list">${files
-          .map(
-            (f) => `<li>
-              <a href="${f.url}" target="_blank" rel="noopener">${f.name || "file"}</a>
+          .map((f) => {
+            const check = f.check || {};
+            const note = check.text ? `<p class="file-check">${check.text}</p>` : "";
+            return `<li>
+              <div>
+                <a href="${f.url}" target="_blank" rel="noopener">${f.name || "file"}</a>
+                ${note}
+              </div>
               <span class="numeric">${formatSize(f.size)}</span>
-            </li>`
-          )
+            </li>`;
+          })
           .join("")}</ul>`
       : `<p class="file-empty">No files on this report yet.</p>`;
     return `<section class="file-box">

@@ -232,6 +232,26 @@ def save_upload(report_id: str, filename: str, content: bytes, mime: str) -> dic
     return {"ok": True, "id": key, "file": record, "files": files, "photos_on_file": bool(row.get("photos_on_file"))}
 
 
+def attach_file_check(report_id: str, stored: str, check: dict[str, Any]) -> dict[str, Any] | None:
+    key = report_id.upper()
+    state = ensure_state([key])
+    row = state[key]
+    files = list(row.get("files") or [])
+    found = None
+    for item in files:
+        if item.get("stored") == stored:
+            item["check"] = {
+                "match": check.get("match"),
+                "text": str(check.get("text") or ""),
+                "needed": str(check.get("needed") or ""),
+            }
+            found = item
+            break
+    row["files"] = files
+    save_state(state)
+    return found
+
+
 def stored_file(report_id: str, stored: str) -> Path | None:
     key = report_id.upper()
     name = Path(stored).name

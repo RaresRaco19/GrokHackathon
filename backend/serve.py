@@ -16,6 +16,7 @@ from backend.agent import AgentError, LlmSession
 from backend.assess import assess, load_reports
 from backend.mcp_client import RulesMcp
 from backend.paths import repo_root
+from backend.vision import check_photo
 from backend.store import (
     cached_decision,
     confirm,
@@ -29,6 +30,7 @@ from backend.store import (
     save_upload,
     stored_file,
     undo,
+    attach_file_check,
 )
 
 PHOTO = {
@@ -50,6 +52,7 @@ LOG_EVENT = {
     "confirm": "confirmed",
     "undo": "undone",
     "upload": "upload",
+    "photo_check": "photo_check",
 }
 POLICY_IDS = ("PX-GLASS", "PX-FLOOD", "PX-COLLISION", "PX-NO-PAY")
 
@@ -58,12 +61,19 @@ PORT = 8788
 
 
 class DeskApp:
-    def __init__(self, llm: LlmSession | None = None, *, keep_state: bool = False) -> None:
+    def __init__(
+        self,
+        llm: LlmSession | None = None,
+        *,
+        keep_state: bool = False,
+        vision: Any | None = None,
+    ) -> None:
         if not keep_state:
             reset_session()
         self.client = RulesMcp()
         self.client.start()
         self.llm = llm
+        self.vision = vision
         self._policy: list[dict[str, str]] | None = None
 
     def close(self) -> None:
@@ -163,6 +173,24 @@ class DeskApp:
         result = save_upload(report_id, filename, content, mime)
         if not result.get("ok"):
             return result
+        record = result["file"]
+        if record.get("kind") == "image":
+            report = load_reports().get(report_id.upper(), {})
+            check = check_photo(
+                content,
+                record.get("mime") or mime,
+                str(report.get("peril") or ""),
+                checker=self.vision,
+            )
+            updated = attach_file_check(report_id, record["stored"], check)
+            if updated:
+                result["file"] = updated
+                record = updated
+            log_event(
+                "photo_check",
+                id=report_id.upper(),
+                detail=("MATCH" if check.get("match") is True else "NO MATCH" if check.get("match") is False else "UNCHECKED"),
+            )
         saved = item_state(report_id)
         decision = saved.get("decision") if isinstance(saved.get("decision"), dict) else None
         report = load_reports().get(report_id.upper(), {})
