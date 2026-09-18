@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+var/*.jsonl
+var/desk_state.json
