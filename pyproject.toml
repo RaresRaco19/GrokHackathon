@@ -1,0 +1,15 @@
+[project]
+name = "grokhackathon"
+version = "0.1.0"
+description = "Claim intake desk: Grok assesses FNOL reports against policy-excerpt.md"
+readme = "README.md"
+authors = [
+    { name = "Ales Melichar", email = "alesmelichar13@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "xai-sdk>=1.19.0",
+]
+
+[tool.uv]
+package = false
