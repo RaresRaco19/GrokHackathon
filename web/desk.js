@@ -191,6 +191,31 @@
     return v ? "On file" : "Missing";
   }
 
+  function perilIcon(peril) {
+    const stroke = `fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"`;
+    const paths = {
+      glass: `<rect x="4.5" y="5" width="15" height="14" rx="1.5"/><path d="M12 5v14"/><path d="M12 12L8 8M12 12l4-3M12 12l-3 4M12 12l3.5 4"/>`,
+      flood: `<path d="M4 8.5h16"/><path d="M4 13c1.8 0 1.8-2.4 3.6-2.4S9.4 13 11.2 13s1.8-2.4 3.6-2.4 1.8 2.4 3.6 2.4 1.8-2.4 3.6-2.4"/><path d="M4 18c1.8 0 1.8-2.4 3.6-2.4S9.4 18 11.2 18s1.8-2.4 3.6-2.4 1.8 2.4 3.6 2.4 1.8-2.4 3.6-2.4"/>`,
+      collision: `<path d="M4.5 15.2h14l-.7-4.1c-.2-1-.9-1.7-1.9-2L12.5 8H9.2L4.5 15.2z"/><circle cx="8" cy="16.6" r="1.35"/><circle cx="16" cy="16.6" r="1.35"/><path d="M19.2 12.4l2 .3M18.8 14.2l2.2.6M19.4 15.8l1.4.9"/>`,
+    };
+    const inner = paths[peril] || `<circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2"/>`;
+    return `<span class="peril-icon" data-peril="${peril || "other"}" aria-hidden="true"><svg viewBox="0 0 24 24" ${stroke}>${inner}</svg></span>`;
+  }
+
+  function groupByPeril(rows) {
+    const order = ["glass", "flood", "collision"];
+    const map = {};
+    rows.forEach((r) => {
+      const key = r.peril || "other";
+      if (!map[key]) map[key] = [];
+      map[key].push(r);
+    });
+    return order
+      .filter((k) => map[k] && map[k].length)
+      .concat(Object.keys(map).filter((k) => order.indexOf(k) < 0))
+      .map((peril) => ({ peril, rows: map[peril] }));
+  }
+
   function mountShell(opts) {
     const current = opts.current;
     const cta = opts.cta || { href: "clerk.html", label: "Open desk", disabled: false, title: "" };
@@ -492,6 +517,8 @@
     badge,
     decisionPhrase,
     photosLabel,
+    perilIcon,
+    groupByPeril,
     relative,
     absolute,
     scoreCard,

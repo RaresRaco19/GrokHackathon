@@ -795,12 +795,50 @@ table.data .id {
   grid-template-columns: 2fr 1fr;
   gap: var(--space-5);
 }
+.claim-photo-wrap {
+  position: relative;
+  margin-bottom: var(--space-4);
+}
 .claim-photo {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-4);
+}
+.claim-photo-wrap .claim-photo { margin-bottom: 0; }
+.peril-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+.peril-icon svg { width: 24px; height: 24px; display: block; }
+.peril-mark {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px 0 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(20, 20, 20, 0.72);
+  color: var(--color-on-accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+.peril-mark .peril-icon { color: var(--color-on-accent); }
+.peril-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: capitalize;
 }
 .facts {
   display: grid;
@@ -972,15 +1010,34 @@ table.data .id {
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
 }
+.tray-group + .tray-group {
+  border-top: 1px solid var(--color-border);
+}
+.tray-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-surface-muted);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.tray-group-name {
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.tray-group-head .numeric { margin-left: auto; }
 .tray-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 32px 1fr auto;
   grid-template-rows: auto auto;
-  column-gap: 12px;
+  column-gap: 10px;
   row-gap: 4px;
   width: 100%;
   min-height: var(--hit);
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 0;
   border-bottom: 1px solid var(--color-border);
   background: transparent;
@@ -989,15 +1046,21 @@ table.data .id {
   color: inherit;
   cursor: pointer;
 }
-.tray-item .id { grid-column: 1; grid-row: 1; }
-.tray-item .tray-meta {
+.tray-item .peril-icon {
   grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.tray-item .id { grid-column: 2; grid-row: 1; }
+.tray-item .tray-meta {
+  grid-column: 2;
   grid-row: 2;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+  text-transform: capitalize;
 }
 .tray-item .badge {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1 / span 2;
   align-self: center;
 }
@@ -1015,6 +1078,11 @@ table.data .id {
   gap: 12px;
   flex-wrap: wrap;
 }
+.clerk-pane h2 .peril-icon {
+  width: 28px;
+  height: 28px;
+}
+.clerk-pane h2 .peril-icon svg { width: 28px; height: 28px; }
 .clerk-phrase {
   margin: 0 0 var(--space-4);
   font-family: var(--font-mono);

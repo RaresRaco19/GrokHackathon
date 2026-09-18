@@ -39,6 +39,7 @@
     function trayItem(r, selected) {
       const current = r.id === selected ? ' aria-current="true"' : "";
       return `<button type="button" class="tray-item" data-id="${r.id}"${current}>
+        ${Intake.perilIcon(r.peril)}
         <span class="id numeric">${r.id}</span>
         <span class="tray-meta">${r.peril} · ${Intake.photosLabel(r.photos)}</span>
         ${Intake.badge(r.decision)}
@@ -58,12 +59,15 @@
       }
       const phrase = Intake.decisionPhrase(r.decision);
       return `<article class="clerk-pane">
-        <img class="claim-photo" src="${r.photo}" alt="${r.photo_alt}" />
+        <div class="claim-photo-wrap">
+          <img class="claim-photo" src="${r.photo}" alt="${r.photo_alt}" />
+          <span class="peril-mark">${Intake.perilIcon(r.peril)} ${r.peril}</span>
+        </div>
         <h2>${r.id} ${Intake.badge(r.decision)}</h2>
         <p class="clerk-phrase">${phrase}</p>
         <dl class="facts">
           <dt>Report</dt><dd class="numeric">${r.id}</dd>
-          <dt>Peril</dt><dd>${r.peril}</dd>
+          <dt>Peril</dt><dd class="peril-fact">${Intake.perilIcon(r.peril)} ${r.peril}</dd>
           <dt>Photos</dt><dd>${Intake.photosLabel(r.photos)}</dd>
           <dt>Cover</dt><dd class="numeric">${r.cover}</dd>
           <dt>Decision</dt><dd>${phrase}</dd>
@@ -155,10 +159,22 @@
         history.replaceState(null, "", "clerk.html?id=" + encodeURIComponent(selectedId));
       }
       document.title = r ? r.id + " — Clerk surface" : "Clerk surface — Intake Desk";
+      const groups = Intake.groupByPeril(rows);
       host.innerHTML = `
         <aside class="tray" aria-label="Incoming reports">
           <div class="tray-head">Incoming <span class="numeric">${rows.length}</span></div>
-          ${rows.map((row) => trayItem(row, r && r.id)).join("")}
+          ${groups
+            .map(
+              (g) => `<div class="tray-group" role="group" aria-label="${g.peril}, ${g.rows.length}">
+            <div class="tray-group-head">
+              ${Intake.perilIcon(g.peril)}
+              <span class="tray-group-name">${g.peril}</span>
+              <span class="numeric">${g.rows.length}</span>
+            </div>
+            ${g.rows.map((row) => trayItem(row, r && r.id)).join("")}
+          </div>`
+            )
+            .join("")}
         </aside>
         ${pane(r)}`;
       bind(data, r);
