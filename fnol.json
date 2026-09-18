@@ -1,0 +1,5 @@
+[
+  {"id": "CL-03", "peril": "glass", "photos": true, "cover": "PX-GLASS"},
+  {"id": "CL-04", "peril": "flood", "photos": true, "cover": "PX-FLOOD"},
+  {"id": "CL-08", "peril": "collision", "photos": false, "cover": "PX-COLLISION"}
+]
