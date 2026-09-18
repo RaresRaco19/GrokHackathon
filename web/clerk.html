@@ -21,6 +21,7 @@
   <script>
     const host = document.querySelector("[data-desk]");
     let selectedId = Intake.params().get("id");
+    const assessing = {};
 
     function reason(r) {
       if (r.decision === "refuse") return "Refuse is not sent";
@@ -46,6 +47,13 @@
     function pane(r) {
       if (!r) {
         return Intake.emptyState("No report selected.", "Pick a file from the incoming tray.", "Back to briefing", "index.html");
+      }
+      if (r.needs_assess || r.decision == null) {
+        return `<article class="clerk-pane">
+          <h2>${r.id} ${Intake.badge(r.decision)}</h2>
+          <p class="clerk-phrase">Assessing against the policy excerpt…</p>
+          <p>Grok looks up the cover in the rules MCP, then returns open, hold for photos, or refuse with a verbatim quote.</p>
+        </article>`;
       }
       const phrase = Intake.decisionPhrase(r.decision);
       return `<article class="clerk-pane">
@@ -83,7 +91,9 @@
       const confirm = host.querySelector("[data-confirm]");
       if (confirm && r && r.can_confirm) {
         confirm.addEventListener("click", () => {
-          Intake.confirmReport(r.id).then(() => Intake.loadData().then(paint));
+          Intake.confirmReport(r.id)
+            .then(() => Intake.loadData({ force: true }).then(paint))
+            .catch(() => Intake.loadData({ force: true }).then(paint));
         });
       }
       const undo = host.querySelector("[data-undo]");
@@ -113,6 +123,15 @@
       }
       const r = rows.find((x) => x.id === requested) || rows[0] || null;
       if (r) selectedId = r.id;
+      if (r && (r.needs_assess || r.decision == null) && !assessing[r.id]) {
+        assessing[r.id] = true;
+        Intake.assessReport(r.id)
+          .then(() => Intake.loadData({ force: true }).then(paint))
+          .catch(() => {
+            assessing[r.id] = false;
+            Intake.toast("Could not assess this file.", "error");
+          });
+      }
       Intake.mountShell({
         current: "clerk",
         cta: {

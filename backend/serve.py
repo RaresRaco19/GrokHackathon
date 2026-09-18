@@ -1,16 +1,20 @@
-"""JSON API for the colleague frontend. No HTML. Bind 127.0.0.1:8788."""
+"""JSON API + static web/ for the intake desk. Bind 127.0.0.1:8788."""
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import sys
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from backend.agent import AgentError, LlmSession
 from backend.assess import assess, load_reports
 from backend.mcp_client import RulesMcp
+from backend.paths import repo_root
 from backend.store import (
     cached_decision,
     confirm,
@@ -23,6 +27,23 @@ from backend.store import (
     undo,
 )
 
+PHOTO = {
+    "glass": (
+        "assets/glass.jpg",
+        "Spiderweb crack across a car windshield, viewed from the passenger seat.",
+    ),
+    "flood": (
+        "assets/flood.jpg",
+        "Silver sedan in knee-deep floodwater on a residential street.",
+    ),
+    "collision": (
+        "assets/collision.jpg",
+        "Silver hatchback with a crumpled rear bumper in an empty parking lot.",
+    ),
+}
+LOG_EVENT = {"refuse": "refuse_logged", "confirm": "confirmed", "undo": "undone"}
+POLICY_IDS = ("PX-GLASS", "PX-FLOOD", "PX-COLLISION", "PX-NO-PAY")
+
 HOST = "127.0.0.1"
 PORT = 8788
 
@@ -32,6 +53,7 @@ class DeskApp:
         self.client = RulesMcp()
         self.client.start()
         self.llm = llm
+        self._policy: list[dict[str, str]] | None = None
 
     def close(self) -> None:
         self.client.close()
@@ -39,6 +61,28 @@ class DeskApp:
     def health(self) -> dict[str, Any]:
         listing = self.client.list_rules()
         return {"ok": True, "mcp": "ok", "rules": listing}
+
+    def policy(self) -> list[dict[str, str]]:
+        if self._policy is None:
+            rows = []
+            for rule_id in POLICY_IDS:
+                rows.append({"id": rule_id, "text": self.client.lookup_rule(rule_id)})
+            self._policy = rows
+        return self._policy
+
+    def public_log(self) -> list[dict[str, Any]]:
+        out = []
+        for row in read_log():
+            event = str(row.get("event") or "")
+            out.append(
+                {
+                    "ts": row.get("ts"),
+                    "id": row.get("id"),
+                    "event": LOG_EVENT.get(event, event),
+                    "detail": row.get("rule_id") or row.get("claim_number") or row.get("decision") or "",
+                }
+            )
+        return out
 
     def queue(self) -> list[dict[str, Any]]:
         reports = load_reports()
@@ -48,7 +92,7 @@ class DeskApp:
             saved = item_state(report_id)
             decision = saved.get("decision") if isinstance(saved.get("decision"), dict) else None
             if decision:
-                items.append(_merge(report, decision, saved))
+                item = _merge(report, decision, saved)
             else:
                 item = dict(report)
                 item.update(
@@ -61,8 +105,18 @@ class DeskApp:
                         "can_undo": saved.get("send_state") == "sent",
                     }
                 )
-                items.append(item)
+            items.append(_decorate(item, saved))
         return items
+
+    def queue_payload(self) -> dict[str, Any]:
+        rows = self.queue()
+        return {
+            "items": rows,
+            "reports": rows,
+            "policy": self.policy(),
+            "log": self.public_log(),
+            "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
 
     def _assess(self, report_id: str | None, question: str | None) -> dict[str, Any]:
         return assess(
@@ -96,10 +150,14 @@ class DeskApp:
                 rule_id=decision["rule_id"],
             )
         if report_id:
-            return _merge(
-                load_reports().get(str(report_id).upper(), {}),
-                decision,
-                item_state(str(report_id)),
+            saved = item_state(str(report_id))
+            return _decorate(
+                _merge(
+                    load_reports().get(str(report_id).upper(), {}),
+                    decision,
+                    saved,
+                ),
+                saved,
             )
         return decision
 
@@ -118,7 +176,8 @@ class DeskApp:
         if not result.get("ok"):
             return result
         report = load_reports().get(report_id.upper(), {})
-        return _merge(report, decision, item_state(report_id))
+        saved = item_state(report_id)
+        return _decorate(_merge(report, decision, saved), saved)
 
     def undo_request(self, body: dict[str, Any]) -> dict[str, Any]:
         report_id = str(body.get("id") or "")
@@ -127,7 +186,8 @@ class DeskApp:
         undo(report_id)
         decision = cached_decision(report_id) or {}
         report = load_reports().get(report_id.upper(), {})
-        return _merge(report, decision, item_state(report_id))
+        saved = item_state(report_id)
+        return _decorate(_merge(report, decision, saved), saved)
 
 
 def _merge(report: dict[str, Any], decision: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
@@ -138,7 +198,52 @@ def _merge(report: dict[str, Any], decision: dict[str, Any], saved: dict[str, An
     item["claim_number"] = saved.get("claim_number")
     item["can_confirm"] = item.get("decision") == "open" and send_state == "draft"
     item["can_undo"] = send_state == "sent"
+    item["needs_assess"] = False
     return item
+
+
+def _decorate(item: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
+    peril = str(item.get("peril") or "").lower()
+    photo, alt = PHOTO.get(peril, ("assets/tray.jpg", "Intake file"))
+    item.setdefault("photo", photo)
+    item.setdefault("photo_alt", alt)
+    item["received_at"] = saved.get("received_at") or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    send = item.get("send_state")
+    if send == "sent":
+        item["ui_send_state"] = "numbered"
+    elif item.get("decision") == "refuse" and saved.get("refuse_logged"):
+        item["ui_send_state"] = "logged"
+    else:
+        item["ui_send_state"] = "draft"
+    return item
+
+
+def web_root() -> Path:
+    return repo_root() / "web"
+
+
+def static_file(url_path: str) -> tuple[int, bytes, str] | None:
+    rel = unquote(url_path.split("?", 1)[0]).lstrip("/")
+    if not rel or rel.endswith("/"):
+        rel = (rel + "index.html") if rel else "index.html"
+    root = web_root().resolve()
+    full = (root / rel).resolve()
+    try:
+        full.relative_to(root)
+    except ValueError:
+        return None
+    if not full.is_file():
+        return None
+    mime, _ = mimetypes.guess_type(str(full))
+    if full.suffix == ".js":
+        mime = "text/javascript; charset=utf-8"
+    elif full.suffix == ".css":
+        mime = "text/css; charset=utf-8"
+    elif full.suffix == ".html":
+        mime = "text/html; charset=utf-8"
+    elif not mime:
+        mime = "application/octet-stream"
+    return 200, full.read_bytes(), mime
 
 
 def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
@@ -155,12 +260,20 @@ def make_handler(app: DeskApp) -> type[BaseHTTPRequestHandler]:
                 self._json(200, app.health())
                 return
             if path == "/api/queue":
-                self._json(200, {"items": app.queue()})
+                self._json(200, app.queue_payload())
                 return
             if path == "/api/log":
-                self._json(200, {"events": read_log()})
+                self._json(200, {"events": app.public_log(), "log": app.public_log()})
                 return
-            self._json(404, {"error": "not found"})
+            static = static_file(path)
+            if static:
+                status, body, mime = static
+                self._send(status, body, mime)
+                return
+            if path.startswith("/api/"):
+                self._json(404, {"error": "not found"})
+                return
+            self._send(404, b"not found", "text/plain; charset=utf-8")
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
@@ -224,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     port = int(args[0] if args else os.environ.get("CLAIMDESK_PORT", PORT))
     server, app = make_server(host, port)
     bound = server.server_address[1]
-    sys.stdout.write(f"claim desk API on http://{host}:{bound}\n")
+    sys.stdout.write(f"claim desk on http://{host}:{bound}/clerk.html\n")
     sys.stdout.flush()
     try:
         server.serve_forever()

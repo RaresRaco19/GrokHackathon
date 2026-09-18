@@ -24,6 +24,8 @@ python -m backend.run CL-04
 python -m backend.serve
 ```
 
+Open **http://127.0.0.1:8788/clerk.html**. The same process serves `web/` and the API. Clerk assessments are Grok + MCP against `fnol.json`.
+
 API binds `127.0.0.1:8788`. State dir is `var/` (`CLAIMDESK_VAR`). Kit root: `CLAIMDESK_ROOT`.
 
 ## API (colleague frontend)

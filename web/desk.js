@@ -8,8 +8,11 @@
 
   const ARROW = `<svg class="arrow" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="8.25" fill="none" stroke="currentColor" stroke-width="1.25"/><path d="M6.5 11.5 L11.5 6.5 M7.5 6.5 H11.5 V10.5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  const PAYOUT_RE = /payout|settlement|how much|we will pay|payment|\bpays?\b|\$|\bdollars\b|\busd\b|indemnif|reserve/i;
-  const OFFDESK_RE = /prescribe|dose|medicine|liable|legal advice|medical/i;
+  const PHOTO = {
+    glass: ["assets/glass.jpg", "Spiderweb crack across a car windshield, viewed from the passenger seat."],
+    flood: ["assets/flood.jpg", "Silver sedan in knee-deep floodwater on a residential street."],
+    collision: ["assets/collision.jpg", "Silver hatchback with a crumpled rear bumper in an empty parking lot."],
+  };
 
   function params() {
     return new URLSearchParams(location.search);
@@ -55,31 +58,53 @@
     return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
   }
 
-  function mintNumber(id) {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const stamp = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
-    return `FNOL-${id}-${stamp}`;
+  function applyOverlay(report) {
+    return report;
   }
 
-  function applyOverlay(report) {
-    const o = loadOverlay()[report.id];
-    if (!o) return report;
-    const next = Object.assign({}, report, o);
-    if (o.send_state === "numbered") {
-      next.can_confirm = false;
-      next.can_undo = true;
-    } else if (o.send_state === "draft" && report.decision === "open") {
-      next.can_confirm = true;
-      next.can_undo = false;
-      next.claim_number = null;
+  function normalizeReport(r) {
+    const next = Object.assign({}, r);
+    if (next.ui_send_state) next.send_state = next.ui_send_state;
+    else if (next.send_state === "sent") next.send_state = "numbered";
+    const pair = PHOTO[next.peril];
+    if (pair) {
+      if (!next.photo) next.photo = pair[0];
+      if (!next.photo_alt) next.photo_alt = pair[1];
     }
+    if (!next.received_at) next.received_at = new Date().toISOString();
     return next;
+  }
+
+  function normalizeLog(e) {
+    return {
+      ts: e.ts,
+      id: e.id,
+      event: e.event,
+      detail: e.detail || e.rule_id || e.claim_number || e.decision || "",
+    };
+  }
+
+  async function api(method, path, body) {
+    const res = await fetch(path, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.error || "http " + res.status);
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data;
   }
 
   function inRange(iso, range) {
     if (demoState() === "empty") return false;
+    if (!iso) return true;
     const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return true;
     const now = Date.now();
     if (range === "shift") {
       const d = new Date();
@@ -90,42 +115,30 @@
     return t >= now - days * 86400000;
   }
 
-  async function fetchJson(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("http");
-    return res.json();
-  }
-
-  async function loadFixture() {
-    try {
-      const api = await fetchJson("/api/queue");
-      if (Array.isArray(api) || (api && api.reports)) {
-        return api.reports ? api : { reports: api, policy: [], log: [], kpis: {}, updated_at: new Date().toISOString() };
-      }
-    } catch {
-      /* fixture */
-    }
-    return fetchJson("desk.json");
-  }
-
   let cache = null;
 
-  async function loadData() {
+  async function loadLive() {
+    const payload = await api("GET", "/api/queue");
+    const rows = (payload.reports || payload.items || []).map(normalizeReport);
+    const log = (payload.log || payload.events || []).map(normalizeLog);
+    return {
+      reports: rows,
+      policy: payload.policy || [],
+      log,
+      updated_at: payload.updated_at || new Date().toISOString(),
+    };
+  }
+
+  async function loadData(opts) {
     const state = demoState();
     if (state === "error") throw new Error("demo-error");
     if (state === "loading") {
       await new Promise((r) => setTimeout(r, 800));
     }
-    if (!cache) cache = await loadFixture();
+    if (!cache || (opts && opts.force)) cache = await loadLive();
     const range = getRange();
-    const reports = cache.reports.map(applyOverlay).filter((r) => inRange(r.received_at, range));
-    const log = (cache.log || []).filter((e) => inRange(e.ts, range));
-    const overlay = loadOverlay();
-    Object.keys(overlay).forEach((id) => {
-      if (overlay[id].log_event && !log.some((e) => e.event === overlay[id].log_event.event && e.id === id && e.ts === overlay[id].log_event.ts)) {
-        if (inRange(overlay[id].log_event.ts, range)) log.push(overlay[id].log_event);
-      }
-    });
+    const reports = cache.reports.filter((r) => inRange(r.received_at, range));
+    const log = (cache.log || []).filter((e) => e.ts && inRange(e.ts, range));
     log.sort((a, b) => new Date(b.ts) - new Date(a.ts));
     const kpis = {
       reports_in_queue: reports.length,
@@ -138,7 +151,7 @@
       log,
       kpis,
       updated_at: cache.updated_at,
-      all: cache.reports.map(applyOverlay),
+      all: cache.reports.slice(),
     };
   }
 
@@ -163,10 +176,12 @@
     if (decision === "open") return "Open";
     if (decision === "hold") return "Hold for photos";
     if (decision === "refuse") return "Refuse";
+    if (!decision) return "Pending assessment";
     return "Off-desk";
   }
 
   function badge(decision) {
+    if (!decision) return `<span class="badge">Pending</span>`;
     const label = decision === "open" ? "Open" : decision === "hold" ? "Hold" : decision === "refuse" ? "Refuse" : "Off-desk";
     const cls = decision === "open" ? "open" : decision === "hold" ? "hold" : decision === "refuse" ? "refuse" : "off-desk";
     return `<span class="badge badge-${cls}">${label}</span>`;
@@ -279,22 +294,29 @@
       const q = dialog.querySelector("textarea").value.trim();
       const err = dialog.querySelector("[data-ask-err]");
       const out = dialog.querySelector("[data-ask-out]");
+      const submit = dialog.querySelector("[type=submit]");
       if (!q) {
         err.hidden = false;
         err.textContent = "Write a question first.";
         return;
       }
       err.hidden = true;
-      let html = "";
-      if (PAYOUT_RE.test(q)) {
-        html = `<p>${badge("refuse")} <strong>PX-NO-PAY</strong></p><p>PX-NO-PAY. Never write “we will pay” or name a settlement amount.</p>`;
-      } else if (OFFDESK_RE.test(q)) {
-        html = `<p>${badge("refuse")} Off-desk</p><p>No rule line matched.</p>`;
-      } else {
-        html = `<p>On-desk. Open the matching report in Queue. The engine quotes policy-excerpt.md; this website does not decide.</p>`;
-      }
       out.hidden = false;
-      out.innerHTML = html;
+      out.textContent = "Checking the policy excerpt…";
+      if (submit) submit.disabled = true;
+      api("POST", "/api/assess", { question: q })
+        .then((d) => {
+          out.innerHTML = `<p>${badge(d.decision)} <strong>${d.rule_id || ""}</strong></p><blockquote class="quote">${d.quote || ""}</blockquote>`;
+          cache = null;
+        })
+        .catch((ex) => {
+          err.hidden = false;
+          err.textContent = ex.message || "Could not check the question.";
+          out.hidden = true;
+        })
+        .finally(() => {
+          if (submit) submit.disabled = false;
+        });
     });
 
     if (!document.querySelector(".toast-region")) {
@@ -316,7 +338,7 @@
     const highs = items.filter((i) => i.importance === "high");
     const passedHigh = highs.filter((i) => i.passed).length;
     const pct = highs.length ? Math.round((passedHigh / highs.length) * 100) : 0;
-    const word = report.decision === "open" ? "Open" : report.decision === "hold" ? "Hold" : "Refuse";
+    const word = decisionPhrase(report.decision);
     const rows = items
       .map((i) => {
         const mark = i.passed ? `<span class="mark pass" aria-label="Pass">✓</span>` : `<span class="mark miss" aria-label="Miss">✕</span>`;
@@ -415,42 +437,33 @@
   }
 
   function confirmReport(id) {
-    return loadData().then((data) => {
-      const r = data.all.find((x) => x.id === id);
-      if (!r) throw new Error("missing");
-      if (r.decision === "refuse") {
-        toast("Refuse is not sent.", "error");
-        return r;
-      }
-      if (r.decision === "hold") {
-        toast("Hold waits for photos.", "error");
-        return r;
-      }
-      const overlay = loadOverlay();
-      const ts = new Date().toISOString();
-      const number = mintNumber(id);
-      overlay[id] = {
-        send_state: "numbered",
-        claim_number: number,
-        log_event: { ts, id, event: "confirmed", detail: r.cover },
-      };
-      saveOverlay(overlay);
-      toast(`Claim number ${number} minted.`);
-      return applyOverlay(Object.assign({}, r, overlay[id]));
-    });
+    cache = null;
+    return api("POST", "/api/confirm", { id })
+      .then((r) => {
+        const row = normalizeReport(r);
+        if (row.claim_number) toast("Claim number " + row.claim_number + " minted.");
+        return row;
+      })
+      .catch((ex) => {
+        const msg = (ex.payload && ex.payload.error) || ex.message || "";
+        if (msg.indexOf("refuse") !== -1) toast("Refuse is not sent.", "error");
+        else if (msg.indexOf("hold") !== -1) toast("Hold waits for photos.", "error");
+        else toast(msg || "Could not confirm.", "error");
+        throw ex;
+      });
   }
 
   function undoReport(id) {
-    const overlay = loadOverlay();
-    const ts = new Date().toISOString();
-    overlay[id] = {
-      send_state: "draft",
-      claim_number: null,
-      log_event: { ts, id, event: "undone", detail: id },
-    };
-    saveOverlay(overlay);
-    toast("Returned to draft.");
-    return loadData();
+    cache = null;
+    return api("POST", "/api/undo", { id }).then((r) => {
+      toast("Returned to draft.");
+      return loadData({ force: true });
+    });
+  }
+
+  function assessReport(id) {
+    cache = null;
+    return api("POST", "/api/assess", { id }).then(normalizeReport);
   }
 
   function getQueueFilters() {
@@ -480,6 +493,7 @@
     emptyState,
     confirmReport,
     undoReport,
+    assessReport,
     demoState,
     getQueueFilters,
     setQueueFilters,

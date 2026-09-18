@@ -151,6 +151,22 @@ class ServeTests(unittest.TestCase):
         self.assertEqual(payload["rule_id"], "PX-NO-PAY")
         self.assertTrue(payload["quote"].startswith("PX-NO-PAY."))
 
+    def test_clerk_html_served(self) -> None:
+        req = Request(self.base + "/clerk.html", method="GET")
+        with urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            self.assertEqual(resp.status, 200)
+            self.assertIn("Clerk surface", body)
+            self.assertIn("desk.js", body)
+
+    def test_queue_payload_has_reports_and_policy(self) -> None:
+        status, payload = self._json("GET", "/api/queue")
+        self.assertEqual(status, 200)
+        self.assertEqual({row["id"] for row in payload["reports"]}, {"CL-03", "CL-04", "CL-08"})
+        self.assertTrue(any(p["id"] == "PX-GLASS" for p in payload["policy"]))
+        self.assertIn("photo", payload["reports"][0])
+        self.assertIn("received_at", payload["reports"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
