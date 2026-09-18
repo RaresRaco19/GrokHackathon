@@ -34,8 +34,17 @@ Do not write "we will pay" or name a settlement amount.
 
 ```
 python3 python/decide.py
-python3 -m unittest python.test_desk
+python3 -m unittest python.test_desk python.test_serve
 bin/run.sh
+bin/demo.sh
 ```
 
 Decisions from chat must match that script.
+
+## Website
+
+The local site is not a second rule book. `bin/desk.sh` starts `python/serve_desk.py` on 127.0.0.1:8788. The UI only renders. Chat, CLI, and the website MUST match `python/decide.py`.
+
+## Grok Bot
+
+Intake Clerk re-runs that same path. It does not mint `FNOL-…` and does not write `var/`. Laptop `POST /api/confirm` is the only mint. Auto Review blocks send, spend, delete, payout language, and invented rules. If anything would send, spend, delete, or name money, stop and ask for a yes.

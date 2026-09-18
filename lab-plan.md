@@ -102,14 +102,16 @@ Kit files listed in §1 are not regenerated.
 | `python/test_desk.py` | Golden tests for the three reports + payout ask |
 | `bin/run.sh` | Case runner: all, CL-03, CL-04, CL-08, advice, test, mcp |
 | `.gitignore` | `__pycache__`, `.DS_Store`, `var/*.jsonl`, `var/desk_state.json` |
-| `AGENTS.md` | Standing instructions for Grok Build |
+| `AGENTS.md` | Standing instructions for Grok Build + Bot wait-for-yes |
 | `python/protect_rules.py` | Hook body: block edits to the policy excerpt |
 | `.grok/skills/review-fnol/SKILL.md` | Project skill `/review-fnol` |
 | `.grok/hooks/protect-rules.json` | Project hook registration |
 | `.grok/config.toml` | Project MCP: `rules` → `python3 python/rules_mcp.py` |
 | `.grok/plugins/fnol-desk/` | Plugin pack: skill + hook + MCP |
-
-Later PRs (not this slice): website, Bot brief, remaining SDD pack.
+| `README.md` | Paste-ready Intake Clerk brief + Auto Review deny-list |
+| `bin/demo.sh` | CL-03, CL-04, payout refuse, unittest, MCP hit+miss |
+| `python/serve_desk.py` | Website backend |
+| `web/` | Original FNOL UI |
 
 ## 6. Spec-driven pack (SDD)
 
@@ -126,7 +128,7 @@ Remaining SDD files come in a later docs PR.
 3. Decision script + golden tests + `bin/run.sh`
 4. Grok surfaces (skill, hook, plugin)
 5. Website confirm / undo / log
-6. Bot + demo script
+6. Bot + demo script (this slice: README brief, AGENTS.md, `bin/demo.sh`)
 7. Docs / laptop map
 
 ## 8. Out of scope
@@ -137,3 +139,9 @@ Remaining SDD files come in a later docs PR.
 - Inventing an open-collision path
 - Stating a payout or settlement amount
 - A public hosted web app
+
+## 9. Bot + demo (this slice)
+
+Intake Clerk is a briefed teammate, not a second engine. It does not mint `FNOL-…` and does not write `var/`. Laptop `POST /api/confirm` is the only mint. Auto Review blocks send, spend, delete, payout language, invented rules.
+
+`bin/demo.sh` prints CL-03, CL-04, payout refuse, unittest, MCP lookup flood (hit) and made-up-rule (miss). Website is not required. Merge bar: the script exits 0 with CL-04 refuse and `PX-FLOOD` in the MCP hit.
