@@ -100,10 +100,16 @@ Kit files listed in §1 are not regenerated.
 | `SDD/constitution.md` | Standing non-negotiables (FNOL, not PA) |
 | `python/decide.py` | Repeatable decision script |
 | `python/test_desk.py` | Golden tests for the three reports + payout ask |
-| `bin/run.sh` | Case runner: all, CL-03, CL-04, CL-08, advice, test |
+| `bin/run.sh` | Case runner: all, CL-03, CL-04, CL-08, advice, test, mcp |
 | `.gitignore` | `__pycache__`, `.DS_Store`, `var/*.jsonl`, `var/desk_state.json` |
+| `AGENTS.md` | Standing instructions for Grok Build |
+| `python/protect_rules.py` | Hook body: block edits to the policy excerpt |
+| `.grok/skills/review-fnol/SKILL.md` | Project skill `/review-fnol` |
+| `.grok/hooks/protect-rules.json` | Project hook registration |
+| `.grok/config.toml` | Project MCP: `rules` → `python3 python/rules_mcp.py` |
+| `.grok/plugins/fnol-desk/` | Plugin pack: skill + hook + MCP |
 
-Later PRs (not this slice): AGENTS.md, skill, hook, plugin, website, Bot brief, remaining SDD pack.
+Later PRs (not this slice): website, Bot brief, remaining SDD pack.
 
 ## 6. Spec-driven pack (SDD)
 

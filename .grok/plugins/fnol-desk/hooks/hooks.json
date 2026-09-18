@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|search_replace|write|Bash|run_terminal_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${GROK_WORKSPACE_ROOT}/python/protect_rules.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
