@@ -70,24 +70,12 @@ def _write_state_unlocked(state: dict) -> None:
     path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
 
-def _blank_entry() -> dict:
-    return {"send_state": "draft", "claim_number": None, "refuse_logged": False}
-
-
 def _entry(state: dict, report_id: str) -> dict:
     raw = state.get(report_id) or {}
     return {
         "send_state": raw.get("send_state") or "draft",
         "claim_number": raw.get("claim_number"),
         "refuse_logged": bool(raw.get("refuse_logged")),
-    }
-
-
-def _store_entry(entry: dict) -> dict:
-    return {
-        "send_state": entry["send_state"],
-        "claim_number": entry.get("claim_number"),
-        "refuse_logged": bool(entry.get("refuse_logged")),
     }
 
 
@@ -106,10 +94,6 @@ def _find_report(report_id: str) -> dict | None:
     return next((row for row in decide.load_reports() if row["id"] == report_id), None)
 
 
-def _label(decision: str) -> str:
-    return "hold for photos" if decision == "hold" else decision
-
-
 def _item(report: dict, result: dict, entry: dict, chrome: dict | None = None) -> dict:
     decision = result["decision"]
     send_state = entry["send_state"]
@@ -119,7 +103,7 @@ def _item(report: dict, result: dict, entry: dict, chrome: dict | None = None) -
         "photos": report["photos"],
         "cover": report["cover"],
         "decision": decision,
-        "label": _label(decision),
+        "label": "hold for photos" if decision == "hold" else decision,
         "rule_id": result["rule_id"],
         "quoted": result["quoted"],
         "source": result["source"],
@@ -167,7 +151,7 @@ def ensure_state() -> dict:
                     }
                 )
                 entry["refuse_logged"] = True
-            state[report_id] = _store_entry(entry)
+            state[report_id] = entry
         _write_state_unlocked(state)
         return state
 
@@ -237,7 +221,7 @@ def confirm(report_id: str) -> tuple[int, dict]:
             entry["claim_number"] = None
         else:
             return 400, {"error": "cannot confirm"}
-        state[report_id] = _store_entry(entry)
+        state[report_id] = entry
         event = {
             "ts": utccompact(),
             "id": report_id,
@@ -269,7 +253,7 @@ def undo(report_id: str) -> tuple[int, dict]:
         previous = entry.get("claim_number")
         entry["send_state"] = "draft"
         entry["claim_number"] = None
-        state[report_id] = _store_entry(entry)
+        state[report_id] = entry
         policy = decide.load_policy()
         result = decide.decide_report(report, policy)
         event = {
@@ -325,7 +309,7 @@ class DeskHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
-        if path in ("/api/queue", "/api/cases"):
+        if path == "/api/queue":
             self._json(200, queue_payload())
             return
         if path == "/api/log":
@@ -343,7 +327,7 @@ class DeskHandler(SimpleHTTPRequestHandler):
             self._json(400, {"error": "invalid JSON"})
             return
         if path == "/api/ask":
-            question = str(data.get("question") or data.get("text") or "")
+            question = str(data.get("question") or "")
             self._json(200, ask_payload(question))
             return
         if path == "/api/confirm":
