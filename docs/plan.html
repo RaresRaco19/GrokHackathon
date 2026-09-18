@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claim intake — implementation plan</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "loose",
+      suppressErrorRendering: true,
+      themeVariables: {
+        primaryColor: "#dbeafe",
+        primaryTextColor: "#0f172a",
+        primaryBorderColor: "#1d4ed8",
+        lineColor: "#334155",
+        secondaryColor: "#ecfeff",
+        tertiaryColor: "#f8fafc",
+        fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
+      }
+    });
+  </script>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --paper: #f8fafc;
+      --card: #ffffff;
+      --accent: #1d4ed8;
+      --ok: #166534;
+      --warn: #92400e;
+      --deny: #991b1b;
+      --bot: #6d28d9;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.55 "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    header {
+      background: var(--ink);
+      color: #fff;
+      padding: 2rem 1.5rem 1.25rem;
+    }
+    header p { color: #cbd5e1; max-width: 76ch; }
+    header .kicker {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: #93c5fd;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      padding: 0.7rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    nav a { color: var(--accent); text-decoration: none; font-size: 0.92rem; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    section { margin: 2.5rem 0 3rem; }
+    h2 { border-bottom: 2px solid var(--ink); padding-bottom: 0.35rem; }
+    h3 { color: var(--accent); }
+    .lead { font-size: 1.1rem; max-width: 78ch; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .card h3 { margin-top: 0; }
+    .mermaid {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .mermaid-error {
+      color: #991b1b;
+      background: #fef2f2;
+      white-space: pre-wrap;
+      font: 0.82rem/1.4 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid var(--line); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+    th { background: #e2e8f0; }
+    code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.9em; }
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .done { background: #dcfce7; color: var(--ok); }
+    .todo { background: #e2e8f0; color: #334155; }
+    .open { background: #dcfce7; color: var(--ok); }
+    .hold { background: #fef3c7; color: var(--warn); }
+    .refuse { background: #fee2e2; color: var(--deny); }
+    .bot { background: #f5f3ff; color: var(--bot); }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.1rem;
+      overflow: auto;
+      border-radius: 10px;
+      font: 0.82rem/1.45 "IBM Plex Mono", ui-monospace, monospace;
+    }
+    ol.steps { max-width: 78ch; }
+    footer { color: var(--muted); font-size: 0.9rem; padding: 2rem 1.5rem; }
+    .callout {
+      border: 1px solid #86efac;
+      background: #f0fdf4;
+      padding: 1rem 1.1rem;
+      border-radius: 10px;
+    }
+    .warnbox {
+      border: 1px solid #fcd34d;
+      background: #fffbeb;
+      padding: 1rem 1.1rem;
+      border-radius: 10px;
+    }
+    @media print {
+      nav { display: none; }
+      header { background: #fff; color: #000; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="kicker">Module 4.3 · executable plan · clone DeskAgent</div>
+    <h1>Claim intake — implementation plan</h1>
+    <p>
+      Build the FNOL desk in this folder. Kit and MCP are already here.
+      Engine first, then Grok surfaces and the live website in parallel,
+      then the Intake Clerk bot, then docs. Execute with
+      <code>/execute-plan md/PLAN.md</code>.
+    </p>
+  </header>
+
+  <nav>
+    <a href="#now">Now</a>
+    <a href="#dag">DAG</a>
+    <a href="#prs">PRs</a>
+    <a href="#golden">Golden cases</a>
+    <a href="#engine">Engine</a>
+    <a href="#tasks">Tasks</a>
+    <a href="#demo">Demo</a>
+    <a href="#bot">Bot</a>
+    <a href="#execute">Execute</a>
+  </nav>
+
+  <main>
+    <section id="now">
+      <h2>Where we are</h2>
+      <div class="callout">
+        <strong>Product root is <code>GrokHackathon/</code></strong> (this git repo) — not <code>ClaimDesk/</code> and not the parent <code>Hackathon/</code> folder.
+        Kit is in <code>data/</code> and <code>md/</code>. All Python is under <code>python/</code>.
+        MCP: <code>grok mcp add --scope project rules -- python3 python/rules_mcp.py</code>.
+        Do not add a root <code>.py</code> shim.
+      </div>
+      <div class="grid" style="margin-top:1rem">
+        <article class="card">
+          <h3>Done</h3>
+          <p>
+            <span class="tag done">kit</span>
+            <code>data/fnol.json</code> · <code>md/policy-excerpt.md</code> · <code>python/rules_mcp.py</code>
+          </p>
+          <p>
+            <span class="tag done">MCP</span>
+            <code>.grok/config.toml</code> → <code>python3 python/rules_mcp.py</code>
+          </p>
+          <p>
+            <span class="tag done">design</span>
+            <a href="design.html">docs/design.html</a> reviewed to 0 open issues
+          </p>
+        </article>
+        <article class="card">
+          <h3>Next</h3>
+          <p>PR-1 engine + golden tests. Merge bar: CL-04 prints <strong>refuse</strong>.</p>
+          <p>If the clock dies after PR-1, build <strong>PR-3 website</strong> before plugin polish.</p>
+        </article>
+        <article class="card">
+          <h3>Win demo</h3>
+          <p>CL-03 <span class="tag open">open</span> then CL-04 <span class="tag refuse">refuse</span>, quote the file, no payout, Intake Clerk wait-for-yes, stop.</p>
+        </article>
+      </div>
+
+      <h3>Layout we will add around the kit</h3>
+      <pre>GrokHackathon/
+  data/fnol.json              kit reports (do not rewrite)
+  md/policy-excerpt.md        kit rules (do not rewrite)
+  md/PLAN.md                  executable PR DAG
+  docs/*.html                 design, plan, scoring
+  python/rules_mcp.py         MCP (parent-walk + pin) — already here
+  python/__init__.py
+  python/decide.py            oracle — PR-1
+  python/serve_desk.py        website backend — PR-3
+  python/protect_rules.py     hook — PR-2
+  python/test_desk.py
+  python/test_serve.py
+  web/                        original FNOL UI
+  bin/run.sh demo.sh desk.sh
+  AGENTS.md lab-plan.md README.md
+  .grok/                      skill, hook, plugin
+  SDD/  var/</pre>
+    </section>
+
+    <section id="dag">
+      <h2>PR DAG</h2>
+      <p class="lead">PR-2 and PR-3 are parallel after PR-1. PR-4 hard-depends on PR-1 only. PR-5 waits for all four.</p>
+      <div class="mermaid">
+flowchart TD
+  done["Done: kit + MCP + design"]
+  pr1["PR-1 Engine + tests"]
+  pr2["PR-2 Grok surfaces"]
+  pr3["PR-3 Website confirm/undo/log"]
+  pr4["PR-4 Intake Clerk + demo.sh"]
+  pr5["PR-5 Docs + laptop map"]
+  done --> pr1
+  pr1 --> pr2
+  pr1 --> pr3
+  pr1 --> pr4
+  pr2 --> pr5
+  pr3 --> pr5
+  pr4 --> pr5
+      </div>
+      <p class="warnbox" style="margin-top:1rem">
+        Clock rule: after PR-1, prefer <strong>PR-3</strong> over finishing the plugin.
+        Live-ops is on the scorecard. Plugin is optional on the track page.
+      </p>
+    </section>
+
+    <section id="prs">
+      <h2>Pull requests</h2>
+      <p>Parseable copy lives in <a href="../md/PLAN.md"><code>md/PLAN.md</code></a> under <code>## PR Plan</code> for <code>/execute-plan md/PLAN.md</code>.</p>
+
+      <h3>PR-1 — Engine + golden tests <span class="tag todo">next</span></h3>
+      <p><strong>Depends on:</strong> none. <strong>Merge bar:</strong> <code>python3 -m unittest python.test_desk</code> and <code>python3 python/decide.py CL-04</code> prints refuse.</p>
+      <ul>
+        <li>Inspect kit in place. Write <code>lab-plan.md</code> §1. Do not invent ClaimDesk/.</li>
+        <li><code>python/decide.py</code> cover-id lookup. Labels <code>open</code> / <code>hold</code> / <code>refuse</code>.</li>
+        <li>Lock CL-03, CL-04, CL-08, “will we pay” → PX-NO-PAY, quotes from file.</li>
+        <li>Do not add a root <code>.py</code>. MCP already lives at <code>python/rules_mcp.py</code>.</li>
+      </ul>
+
+      <h3>PR-2 — Grok Build surfaces <span class="tag todo">after PR-1</span></h3>
+      <p><strong>Depends on:</strong> PR-1. MCP already at <code>python/rules_mcp.py</code> — keep <code>args = ["python/rules_mcp.py"]</code>.</p>
+      <ul>
+        <li>Pin <code>RULE_FILE</code> to <code>md/policy-excerpt.md</code>. Drop four-track PREFERRED.</li>
+        <li>No root shim. Skill / hook / plugin only in this PR.</li>
+        <li><code>AGENTS.md</code>, skill <code>/review-fnol</code>, hook on <code>policy-excerpt.md</code>, plugin <code>fnol-desk</code> (thin OK).</li>
+        <li>Merge bar: both MCP paths return a line starting <code>PX-FLOOD</code>.</li>
+      </ul>
+
+      <h3>PR-3 — Website + confirm / undo / log <span class="tag todo">parallel after PR-1</span></h3>
+      <p><strong>Depends on:</strong> PR-1. This is the live-ops scorecard row.</p>
+      <ul>
+        <li>Original FNOL UI. No Alder chrome. No rules in JS.</li>
+        <li><code>GET /api/queue</code> read-only. <code>ensure_state()</code> owns refuse log once.</li>
+        <li>Confirm mints <code>FNOL-{id}-{YYYYMMDDTHHMMSSZ}</code> on <em>open</em> only. CL-04 confirm → 400.</li>
+        <li>Undo restores draft. Log JSONL has no amounts. Bind <code>127.0.0.1:8788</code>.</li>
+        <li>Tests use <code>CLAIMDESK_VAR</code> temp dir.</li>
+      </ul>
+
+      <h3>PR-4 — Intake Clerk + <code>bin/demo.sh</code> <span class="tag bot">plus</span></h3>
+      <p><strong>Depends on:</strong> PR-1 (hard). Bot does not mint and does not write <code>var/</code>.</p>
+      <ul>
+        <li>Paste-ready brief in README. Auto Review: send / spend / delete / money / invented rules.</li>
+        <li><code>bin/demo.sh</code>: CL-03, CL-04, payout refuse, unittest, MCP hit+miss.</li>
+      </ul>
+
+      <h3>PR-5 — Docs and laptop show</h3>
+      <p><strong>Depends on:</strong> PR-1 through PR-4. Copy <code>design.html</code> → <code>docs/c4.html</code> once code matches. Lab-report + SDD pack + README map. Docs do not replace the live demo.</p>
+    </section>
+
+    <section id="golden">
+      <h2>Golden cases (kit on disk)</h2>
+      <table>
+        <thead>
+          <tr><th>Id</th><th>peril</th><th>photos</th><th>cover</th><th>Decision</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>CL-03</code></td>
+            <td>glass</td>
+            <td>true</td>
+            <td><code>PX-GLASS</code></td>
+            <td><span class="tag open">open</span> draft until confirm</td>
+            <td>Pass case</td>
+          </tr>
+          <tr>
+            <td><code>CL-04</code></td>
+            <td>flood</td>
+            <td>true</td>
+            <td><code>PX-FLOOD</code></td>
+            <td><span class="tag refuse">refuse</span> log not send</td>
+            <td>Scoring refuse</td>
+          </tr>
+          <tr>
+            <td><code>CL-08</code></td>
+            <td>collision</td>
+            <td>false</td>
+            <td><code>PX-COLLISION</code></td>
+            <td><span class="tag hold">hold for photos</span></td>
+            <td>Pocket if asked</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Quoted bodies must appear verbatim in <code>policy-excerpt.md</code> (including the curly quotes on “we will pay”). Flood is excluded even when photos are true. Collision is hold-only when photos are false — do not invent an open-collision outcome.</p>
+    </section>
+
+    <section id="engine">
+      <h2>Engine path</h2>
+      <div class="mermaid">
+flowchart TD
+  in[Input]
+  pay{Payout family?}
+  med{Medical or legal?}
+  cover{cover in policy?}
+  flood{cover is PX-FLOOD?}
+  photos{photos false?}
+  glass{cover is PX-GLASS?}
+  rpay["refuse PX-NO-PAY"]
+  rnone["refuse no-match"]
+  rflood["refuse PX-FLOOD"]
+  hold["hold PX-COLLISION"]
+  open["open PX-GLASS"]
+  miss["no-match"]
+  in --> pay
+  pay -->|yes| rpay
+  pay -->|no| med
+  med -->|yes| rnone
+  med -->|no| cover
+  cover -->|no| miss
+  cover -->|yes| flood
+  flood -->|yes| rflood
+  flood -->|no| photos
+  photos -->|yes| hold
+  photos -->|no| glass
+  glass -->|yes| open
+  glass -->|no| miss
+      </div>
+      <p>Chat, website, tests, and Bot must match <code>python/decide.py</code>. The UI only renders.</p>
+    </section>
+
+    <section id="tasks">
+      <h2>Task list</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>PR</th><th>Task</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>T000</td><td>—</td><td>Kit at root; MCP registered</td><td><span class="tag done">done</span></td></tr>
+          <tr><td>T001</td><td>1</td><td>Inspect kit → <code>lab-plan.md</code> §1</td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T002</td><td>1</td><td><code>SDD/constitution.md</code></td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T003</td><td>1</td><td><code>python/__init__.py</code> + gitignore</td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T004–T007</td><td>1</td><td>Parse policy, load reports, decision order, <code>bin/run.sh</code></td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T008–T012</td><td>1</td><td>Golden tests CL-03 / CL-04 / CL-08 / payout / merge bar</td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T013–T017</td><td>2</td><td>Pin MCP, skill, hook, plugin, mcp smoke</td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T018–T022</td><td>3</td><td>serve_desk, confirm/undo/log, web UI, desk.sh, test_serve</td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T023–T024</td><td>4</td><td>Bot brief + <code>bin/demo.sh</code></td><td><span class="tag todo">todo</span></td></tr>
+          <tr><td>T025</td><td>5</td><td>docs/c4, lab-report, SDD, README map</td><td><span class="tag todo">todo</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="demo">
+      <h2>Laptop demo order</h2>
+      <ol class="steps">
+        <li>Name the track: claim intake — open, hold, or refuse. Never a payout. A Grok Bot keeps the queue after we close the laptop.</li>
+        <li>CL-03 → open. Quote PX-GLASS. Clerk confirm.</li>
+        <li>CL-04 → refuse. Quote PX-FLOOD. Confirm is 400.</li>
+        <li>Point at AGENTS.md, skill, hook, MCP <code>lookup_rule</code>, Intake Clerk.</li>
+        <li>Stop. If asked “what do we pay?”: “The desk does not state a payout.”</li>
+      </ol>
+    </section>
+
+    <section id="bot">
+      <h2>Intake Clerk — paste into Grok Bot</h2>
+      <pre>Name: Intake Clerk
+Title: Claim intake night watch
+Description: Re-run the claim-intake script on fnol.json. The only rule source is policy-excerpt.md via lookup_rule. For each report return open, hold for photos, or refuse, and quote the policy line. Never state a payout or settlement amount. Never give medical or legal advice. CL-03 glass stays open and waits for the clerk to click before a claim number exists. CL-04 flood stays refused and is logged on the laptop, not sent. Hold for photos waits for the clerk. Off-scope questions are refused. Notes on the Bot if needed; never write GrokHackathon/var/; never mint FNOL-…. If anything would send, spend, delete, or name money, stop and ask for a yes.</pre>
+    </section>
+
+    <section id="execute">
+      <h2>How to execute</h2>
+      <div class="callout">
+        <p>Open this folder in Grok Build and run:</p>
+        <pre style="margin:0.6rem 0 0">/execute-plan md/PLAN.md</pre>
+        <p style="margin:0.8rem 0 0">That file’s <code>## PR Plan</code> is the DAG. Or say “execute the plan” in chat. PR-1 starts first; PR-2 and PR-3 can run in parallel after it.</p>
+      </div>
+      <p>Constraints for implementers: stdlib only, no pip, no real customer data, no payout amounts, no invented rules, no copy of Alder HTML, bind 127.0.0.1 only, port 8788 (DeskAgent uses 8787).</p>
+    </section>
+  </main>
+
+  <footer>
+    Sources:
+    <a href="https://grok-enablement-workshop.grok.me/modules/hackathon/fnol">4.3 Claim intake</a>
+    ·
+    <a href="https://grok-enablement-workshop.grok.me/judging">judging</a>
+    ·
+    <a href="design.html">design.html</a>
+    ·
+    <a href="../md/PLAN.md">md/PLAN.md</a>
+    · prior art <code>/Users/tek/work/xAI/project/DeskAgent</code>.
+    Kit quotes are from files on disk, not invented.
+  </footer>
+  <script>
+    (function () {
+      function fail(el, err) {
+        var pre = document.createElement("pre");
+        pre.className = "mermaid-error";
+        pre.textContent = (err && err.message) ? err.message : String(err);
+        el.replaceWith(pre);
+      }
+      if (!window.mermaid) return;
+      document.querySelectorAll(".mermaid").forEach(function (el) {
+        var id = "mmd-" + Math.random().toString(36).slice(2);
+        mermaid.render(id, el.textContent).then(function (out) {
+          el.innerHTML = out.svg;
+        }).catch(function (err) { fail(el, err); });
+      });
+    })();
+  </script>
+</body>
+</html>
