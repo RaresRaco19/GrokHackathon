@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live-ops log — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <header class="page-head">
+      <h1>Live-ops log</h1>
+      <p>What already happened on this laptop. No amounts.</p>
+    </header>
+    <div class="wrap" data-log></div>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    Intake.mountShell({ current: "log" });
+    const host = document.querySelector("[data-log]");
+    const eventLabel = {
+      refuse_logged: "Refuse logged",
+      confirmed: "Confirmed",
+      undone: "Undone",
+      ask_refused: "Ask refused",
+    };
+    if (Intake.demoState() === "error") {
+      host.innerHTML = Intake.emptyState("Could not load the log.", "Retry the live-ops log.", "Retry", "log.html");
+    } else {
+      Intake.loadData()
+        .then((data) => {
+          if (!data.log.length) {
+            host.innerHTML = Intake.emptyState("No events in this range.", "Reset the time range to see laptop events.", "Reset to last 7 days", "log.html");
+            return;
+          }
+          host.innerHTML = `<div class="table-scroll"><table class="data">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Report</th>
+                <th>Event</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.log
+                .map(
+                  (e) => `<tr>
+                    <td><time datetime="${e.ts}" title="${Intake.absolute(e.ts)}">${Intake.relative(e.ts)}</time></td>
+                    <td class="numeric">${e.id || "—"}</td>
+                    <td>${eventLabel[e.event] || e.event}</td>
+                    <td class="numeric">${e.detail}</td>
+                  </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table></div>
+          <p class="status-line">${data.log.length} event${data.log.length === 1 ? "" : "s"}</p>`;
+        })
+        .catch(() => {
+          host.innerHTML = Intake.emptyState("Could not load the log.", "Retry the live-ops log.", "Retry", "log.html");
+        });
+    }
+  </script>
+</body>
+</html>

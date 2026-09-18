@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Introducing the intake desk — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <span class="kicker">Live ops</span>
+    <h1>Introducing the intake desk</h1>
+
+    <figure class="hero">
+      <img src="assets/hero.jpg" alt="Claims office desk with a cork board of vehicle photos, a closed laptop, and stacked folders at dusk." />
+      <div class="hero-scrim" aria-hidden="true"></div>
+      <figcaption class="hero-copy">
+        <span class="brand">INTAKE</span>
+        <span class="tag">First notice of loss</span>
+      </figcaption>
+    </figure>
+
+    <div class="split">
+      <dl class="meta">
+        <dt>Category</dt>
+        <dd>Live ops</dd>
+        <dt>Updated</dt>
+        <dd><time datetime="2026-09-18">18 Sep 2026</time></dd>
+        <dt>Author</dt>
+        <dd>Mara Ellison<br />Kenji Okada<br />Priya Shah</dd>
+      </dl>
+      <div>
+        <p class="lead">This desk opens, holds, or refuses a first notice of loss against a four-line policy excerpt. A clerk clicks before a claim number exists. Flood is refused. Missing photos wait. Nobody names a payout.</p>
+        <div class="body-copy">
+          <p>The engine reads fnol.json and quotes policy-excerpt.md. The website only displays that decision. Confirm mints a number on open files. Refuse is logged on this laptop and is not sent.</p>
+        </div>
+      </div>
+    </div>
+
+    <section class="section-wide" aria-labelledby="strip-h">
+      <h2 id="strip-h" class="sr-only">Files this desk already knows how to see</h2>
+      <p class="strip-caption">Files this desk already knows how to see:</p>
+      <div class="photo-strip">
+        <a href="claim.html?id=CL-03"><img src="assets/glass.jpg" alt="Spiderweb crack across a car windshield, viewed from the passenger seat." />CL-03 · Glass</a>
+        <a href="claim.html?id=CL-04"><img src="assets/flood.jpg" alt="Silver sedan in knee-deep floodwater on a residential street." />CL-04 · Flood</a>
+        <a href="claim.html?id=CL-08"><img src="assets/collision.jpg" alt="Silver hatchback with a crumpled rear bumper in an empty parking lot." />CL-08 · Collision</a>
+        <a href="policy.html"><img src="assets/tray.jpg" alt="Policy binder, clipboard, and photo sleeve on an oak desk." />Policy excerpt</a>
+        <a href="queue.html"><img src="assets/hero.jpg" alt="Claims office desk with a cork board of vehicle photos, a closed laptop, and stacked folders at dusk." />Queue</a>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="why-h">
+      <h2 id="why-h">Why this desk exists</h2>
+      <div class="body-copy">
+        <p>A first notice of loss is a file, not a promise. This desk exists so a clerk can see the same three golden cases a judge will ask for: glass that can open, flood that must refuse, collision that waits for photos. The policy excerpt is the only rule book. If a question is medical, legal, or about money, the desk turns it down.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="how-h">
+      <h2 id="how-h">How a report is decided</h2>
+      <ol class="ol-plain">
+        <li>The cover id on the report selects a line in policy-excerpt.md.</li>
+        <li>The clerk’s question is the prompt. Payout and medical-legal questions are off-desk.</li>
+        <li>The file is the photos flag plus the peril. Missing photos cannot open.</li>
+        <li>The engine is python/decide.py. The website does not keep a second copy of the rules.</li>
+      </ol>
+    </section>
+
+    <section class="section-wide" aria-labelledby="shift-h">
+      <h2 id="shift-h">This shift</h2>
+      <p class="status-line" data-updated></p>
+      <div class="kpi-row" data-kpis></div>
+    </section>
+
+    <section class="section-wide" aria-labelledby="heat-h">
+      <h2 id="heat-h" class="sr-only">Queue mix</h2>
+      <div class="heatmap" data-heatmap></div>
+      <p class="legend">
+        <span><i style="background:#e8eef4"></i>Idle</span>
+        <span><i style="background:#9bb0c7"></i>Hold</span>
+        <span><i style="background:#4a6f94"></i>Open</span>
+        <span><i style="background:#1b365d"></i>Refuse</span>
+      </p>
+    </section>
+
+    <section class="section" aria-labelledby="parts-h">
+      <h2 id="parts-h">Four parts of a file</h2>
+      <ol class="ol-plain">
+        <li>Report id — CL-03, CL-04, or CL-08.</li>
+        <li>Peril and photos — glass, flood, or collision, and whether photos are on the file.</li>
+        <li>Quoted line — the verbatim PX-* sentence from policy-excerpt.md.</li>
+        <li>Clerk action — confirm (open only), hold, or log a refuse. Undo puts an open file back to draft.</li>
+      </ol>
+    </section>
+
+    <section class="section-wide" aria-labelledby="labels-h">
+      <h2 id="labels-h">Decision labels</h2>
+      <div class="table-scroll">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>When</th>
+              <th>What the clerk sees</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-href="queue.html?decision=open">
+              <td>Open</td>
+              <td>Glass, photos on file, PX-GLASS</td>
+              <td>Draft until Confirm mints a number</td>
+            </tr>
+            <tr data-href="queue.html?decision=hold">
+              <td>Hold</td>
+              <td>Photos missing (collision)</td>
+              <td>Hold for photos. Confirm stays off</td>
+            </tr>
+            <tr data-href="queue.html?decision=refuse">
+              <td>Refuse</td>
+              <td>Flood, or a payout / off-desk ask</td>
+              <td>Logged on the laptop, not sent</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section-wide" aria-labelledby="score-h">
+      <h2 id="score-h">How we score a file</h2>
+      <div class="steps">
+        <article class="step">
+          <div class="idx">01</div>
+          <h3>The policy writes the checklist</h3>
+          <p>The must-haves: cover id, photos flag, and a verbatim PX-* line. No invented rule ids.</p>
+        </article>
+        <article class="step">
+          <div class="idx">02</div>
+          <h3>The engine does the task</h3>
+          <p>python/decide.py returns open, hold, or refuse. The website displays that result.</p>
+        </article>
+        <article class="step">
+          <div class="idx">03</div>
+          <h3>The clerk ticks what ships</h3>
+          <p>Confirm is the human click. Refuse is logged, not sent. Hold waits for photos.</p>
+        </article>
+      </div>
+      <div style="height:32px"></div>
+      <div data-score></div>
+    </section>
+
+    <section class="section-wide" aria-labelledby="picture-h">
+      <h2 id="picture-h">This shift’s picture</h2>
+      <div class="chart-card" data-chart-bar>
+        <h3>Decisions by peril</h3>
+        <p class="helper">Count of open, hold, and refuse on the three kit reports.</p>
+        <p class="chart-legend">
+          <span><i class="swatch" style="background:#1b365d"></i>Open</span>
+          <span><i class="swatch" style="background:#c4a35a"></i>Hold</span>
+          <span><i class="swatch" style="background:#6b2d2d"></i>Refuse</span>
+          <span>Average of the three files (1.00 = all open)</span>
+        </p>
+      </div>
+      <div class="chart-card" data-chart-scatter>
+        <h3>Photos on file vs decision</h3>
+        <p class="helper">1 = photos present. Decision weight: refuse 0, hold 0.5, open 1. No money axis.</p>
+        <p class="source">Source: fnol.json + policy-excerpt.md</p>
+      </div>
+    </section>
+
+    <section class="section-wide" aria-labelledby="ex-h">
+      <h2 id="ex-h">Example reports</h2>
+      <div class="examples" data-examples></div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>
+          <div class="foot-brand">INTAKE</div>
+          <p>Rule book: policy-excerpt.md. Engine: python/decide.py. No payouts.</p>
+          <p>© 2026 Intake Desk</p>
+        </div>
+        <div>
+          <p><a href="queue.html">Queue</a></p>
+          <p><a href="policy.html">Policy</a></p>
+          <p><a href="log.html">Log</a></p>
+        </div>
+        <div>
+          <p>Live ops on this laptop. Confirm is the only mint. Undo restores draft.</p>
+        </div>
+      </div>
+    </footer>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    Intake.mountShell({ current: "overview" });
+    const kpisEl = document.querySelector("[data-kpis]");
+    const heatEl = document.querySelector("[data-heatmap]");
+    const scoreEl = document.querySelector("[data-score]");
+    const barEl = document.querySelector("[data-chart-bar]");
+    const scEl = document.querySelector("[data-chart-scatter]");
+    const exEl = document.querySelector("[data-examples]");
+    const updatedEl = document.querySelector("[data-updated]");
+
+    function heatCell(cls, href, title, sub) {
+      return `<a class="heat ${cls}" href="${href}"><span>${title}</span><span class="sub">${sub}</span></a>`;
+    }
+
+    Intake.loadData()
+      .then((data) => {
+        if (Intake.demoState() === "loading") {
+          kpisEl.innerHTML = `<div class="kpi"><div class="skeleton" style="height:120px"></div></div>`.repeat(3);
+          return;
+        }
+        const k = data.kpis;
+        updatedEl.innerHTML = `Updated <time datetime="${data.updated_at}" title="${Intake.absolute(data.updated_at)}">${Intake.relative(data.updated_at)}</time>`;
+        if (!data.reports.length) {
+          kpisEl.innerHTML = Intake.emptyState("No reports in this range.", "The three kit files sit outside this time range.", "Reset to last 7 days", "index.html");
+          localStorage.setItem("intake.timeRange", "7d");
+          heatEl.innerHTML = "";
+          return;
+        }
+        kpisEl.innerHTML = `
+          <a class="kpi" href="queue.html">
+            <h3>Reports in queue</h3>
+            <p class="value">${k.reports_in_queue}</p>
+            <p class="helper">Each a cover id, a peril, and a photos flag.</p>
+          </a>
+          <a class="kpi" href="policy.html">
+            <h3>Policy lines in force</h3>
+            <p class="value">${k.rules_in_force}</p>
+            <p class="helper">PX-GLASS, PX-FLOOD, PX-COLLISION, PX-NO-PAY.</p>
+          </a>
+          <a class="kpi" href="queue.html?photos=false">
+            <h3>Photos on file</h3>
+            <p class="value">${k.photos_on_file}</p>
+            <p class="helper">2 of 3 reports. Collision is waiting.</p>
+          </a>`;
+        const byId = Object.fromEntries(data.all.map((r) => [r.id, r]));
+        const drafts = data.reports.filter((r) => r.send_state === "draft").length;
+        const logged = data.reports.filter((r) => r.send_state === "logged").length;
+        heatEl.innerHTML = [
+          heatCell("heat-3", "claim.html?id=CL-03", "Glass · CL-03 · open", byId["CL-03"] ? byId["CL-03"].cover : "PX-GLASS"),
+          heatCell("heat-4", "claim.html?id=CL-04", "Flood · CL-04 · refuse", "PX-FLOOD"),
+          heatCell("heat-2", "claim.html?id=CL-08", "Collision · CL-08 · hold", "PX-COLLISION"),
+          `<button type="button" class="heat heat-1" data-ask><span>Payout ask · off-desk</span><span class="sub">PX-NO-PAY</span></button>`,
+          heatCell("heat-3", "queue.html?photos=true", "Photos on file · 2", "of 3 reports"),
+          heatCell("heat-2", "queue.html?photos=false", "Photos missing · 1", "CL-08"),
+          heatCell("heat-3", "queue.html?send_state=draft", "Draft · " + drafts, "waiting on a click"),
+          heatCell("heat-1", "log.html", "Logged refuse · " + logged, "not sent"),
+        ].join("");
+        const cl03 = data.all.find((r) => r.id === "CL-03");
+        if (cl03) scoreEl.innerHTML = Intake.scoreCard(cl03);
+        const mountBar = document.createElement("div");
+        barEl.appendChild(mountBar);
+        Intake.renderBarChart(mountBar, data.reports);
+        const mountSc = document.createElement("div");
+        scEl.appendChild(mountSc);
+        Intake.renderScatter(mountSc, data.reports);
+        exEl.innerHTML = data.all
+          .map(
+            (r) => `<a class="example" href="claim.html?id=${r.id}">
+              <img src="${r.photo}" alt="${r.photo_alt}" />
+              <div>
+                <div class="eyebrow">${r.peril} · ${r.decision} · ${Intake.photosLabel(r.photos)}</div>
+                <h3>${r.id}</h3>
+                <p>${r.prompt}</p>
+                <p class="expected">Expected: ${r.decision}. Quote ${r.cover}.</p>
+              </div>
+            </a>`
+          )
+          .join("");
+      })
+      .catch(() => {
+        kpisEl.innerHTML = Intake.emptyState("Could not load the queue.", "The briefing widgets failed.", "Retry", "index.html");
+        heatEl.innerHTML = "";
+      });
+
+    document.querySelectorAll("tr[data-href]").forEach((tr) => {
+      tr.tabIndex = 0;
+      const go = () => (location.href = tr.getAttribute("data-href"));
+      tr.addEventListener("click", go);
+      tr.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") go();
+      });
+    });
+  </script>
+</body>
+</html>

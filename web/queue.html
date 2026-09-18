@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reports — Intake Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="desk.css" />
+</head>
+<body>
+  <main id="main">
+    <header class="page-head">
+      <h1>Reports</h1>
+      <p>Three kit files. Confirm is a human click.</p>
+    </header>
+    <div class="wrap">
+      <form class="filters" data-filters>
+        <label>Decision
+          <select name="decision">
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="hold">Hold</option>
+            <option value="refuse">Refuse</option>
+          </select>
+        </label>
+        <label>Photos
+          <select name="photos">
+            <option value="all">All</option>
+            <option value="true">On file</option>
+            <option value="false">Missing</option>
+          </select>
+        </label>
+        <label>Send
+          <select name="send_state">
+            <option value="all">All</option>
+            <option value="draft">Draft</option>
+            <option value="numbered">Numbered</option>
+            <option value="logged">Logged</option>
+          </select>
+        </label>
+        <div class="chips" data-chips></div>
+        <button class="btn btn-ghost" type="button" data-clear>Clear filters</button>
+      </form>
+      <div data-table></div>
+      <p class="status-line" data-status></p>
+    </div>
+  </main>
+  <script src="desk.js"></script>
+  <script>
+    Intake.mountShell({ current: "queue" });
+    const q = Intake.params();
+    const filters = Intake.getQueueFilters();
+    if (q.get("decision")) filters.decision = q.get("decision");
+    if (q.get("photos")) filters.photos = q.get("photos");
+    if (q.get("send_state")) filters.send_state = q.get("send_state");
+    Intake.setQueueFilters(filters);
+
+    const form = document.querySelector("[data-filters]");
+    form.decision.value = filters.decision;
+    form.photos.value = filters.photos;
+    form.send_state.value = filters.send_state;
+
+    function chipLabel(key, val) {
+      if (key === "photos") return val === "true" ? "Photos: On file" : "Photos: Missing";
+      if (key === "decision") return "Decision: " + val;
+      return "Send: " + val;
+    }
+
+    function renderChips() {
+      const f = Intake.getQueueFilters();
+      const chips = document.querySelector("[data-chips]");
+      chips.innerHTML = Object.entries(f)
+        .filter(([, v]) => v && v !== "all")
+        .map(([k, v]) => `<span class="chip">${chipLabel(k, v)} <button type="button" aria-label="Clear ${chipLabel(k, v)}" data-clear-one="${k}">×</button></span>`)
+        .join("");
+    }
+
+    function apply(rows) {
+      const f = Intake.getQueueFilters();
+      return rows.filter((r) => {
+        if (f.decision !== "all" && r.decision !== f.decision) return false;
+        if (f.photos === "true" && !r.photos) return false;
+        if (f.photos === "false" && r.photos) return false;
+        if (f.send_state !== "all" && r.send_state !== f.send_state) return false;
+        return true;
+      });
+    }
+
+    function draw(data) {
+      const host = document.querySelector("[data-table]");
+      const rows = apply(data.reports);
+      renderChips();
+      document.querySelector("[data-status]").textContent = `${rows.length} of ${data.reports.length} · updated ${Intake.relative(data.updated_at)}`;
+      if (!rows.length) {
+        host.innerHTML = Intake.emptyState("No reports match these filters.", "Clear filters to see the three kit files.", "Clear filters", "queue.html");
+        const action = host.querySelector(".btn");
+        if (action) {
+          action.addEventListener("click", (e) => {
+            e.preventDefault();
+            document.querySelector("[data-clear]").click();
+          });
+        }
+        return;
+      }
+      host.innerHTML = `<div class="table-scroll"><table class="data">
+        <thead>
+          <tr>
+            <th class="sticky">Report</th>
+            <th>Peril</th>
+            <th>Photos</th>
+            <th>Cover</th>
+            <th>Decision</th>
+            <th>Send</th>
+            <th>Quoted line</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (r) => `<tr tabindex="0" data-href="claim.html?id=${r.id}">
+                <td class="id sticky">${r.id}</td>
+                <td>${r.peril}</td>
+                <td>${Intake.photosLabel(r.photos)}</td>
+                <td class="numeric">${r.cover}</td>
+                <td>${Intake.badge(r.decision)}</td>
+                <td>${r.send_state}</td>
+                <td title="${r.quote.replace(/"/g, "&quot;")}">${r.quote.length > 80 ? r.quote.slice(0, 80) + "…" : r.quote}</td>
+              </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table></div>`;
+      host.querySelectorAll("tr[data-href]").forEach((tr) => {
+        const go = () => (location.href = tr.getAttribute("data-href"));
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") go();
+        });
+      });
+    }
+
+    function bind() {
+      form.addEventListener("change", () => {
+        Intake.setQueueFilters({
+          decision: form.decision.value,
+          photos: form.photos.value,
+          send_state: form.send_state.value,
+        });
+        Intake.loadData().then(draw);
+      });
+      form.addEventListener("click", (e) => {
+        const one = e.target.getAttribute("data-clear-one");
+        if (one) {
+          const f = Intake.getQueueFilters();
+          f[one] = "all";
+          Intake.setQueueFilters(f);
+          form[one].value = "all";
+          Intake.loadData().then(draw);
+        }
+      });
+      document.querySelector("[data-clear]").addEventListener("click", () => {
+        Intake.setQueueFilters({ decision: "all", photos: "all", send_state: "all" });
+        form.decision.value = form.photos.value = form.send_state.value = "all";
+        Intake.loadData().then(draw);
+      });
+    }
+
+    bind();
+    if (Intake.demoState() === "error") {
+      document.querySelector("[data-table]").innerHTML = Intake.emptyState("Could not load reports.", "The queue request failed.", "Retry", "queue.html");
+    } else {
+      Intake.loadData().then(draw).catch(() => {
+        document.querySelector("[data-table]").innerHTML = Intake.emptyState("Could not load reports.", "The queue request failed.", "Retry", "queue.html");
+      });
+    }
+  </script>
+</body>
+</html>
