@@ -82,6 +82,16 @@
           <div class="card">
             <p class="lbl">Photos</p>
             <p class="body" id="photos"></p>
+            <img id="photo-preview" alt="Uploaded evidence" hidden />
+            <button type="button" id="photo-delete" class="ghost" hidden>Remove photo</button>
+            <form id="photo-form" hidden>
+              <label class="file">
+                <input id="photo-input" type="file" accept="image/*" />
+                Choose image
+              </label>
+              <button type="submit" id="photo-btn">Attach photos</button>
+            </form>
+            <p class="hint" id="photo-hint">Photo must match this report: glass, flood, or collision. Otherwise the case does not change.</p>
           </div>
           <div class="card">
             <p class="lbl">Cover</p>
@@ -117,6 +127,12 @@
           <ul id="log" class="log"></ul>
         </div>
       </section>
+    </div>
+  </div>
+  <div id="popup" class="popup" hidden>
+    <div class="popup-card" role="alertdialog" aria-labelledby="popup-text">
+      <p id="popup-text"></p>
+      <button type="button" id="popup-ok">OK</button>
     </div>
   </div>
   <script src="desk.js"></script>

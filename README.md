@@ -38,6 +38,36 @@ Python lives under `python/`. Port **8788**.
 | CL-08 | hold for photos | PX-COLLISION |
 | “will we pay?” | refuse | PX-NO-PAY |
 
+## Ask the desk
+
+The website box **Ask the desk** (and `python3 python/decide.py --advice "…"`) scores the prompt against `md/policy-excerpt.md` only. It does not invent a rule.
+
+### Coverage (from the excerpt)
+
+| Type this | Desk | Quoted rule |
+|-----------|------|-------------|
+| `glass` · `windshield` · `shattered` · `broken window` · `is glass covered` | **open** | PX-GLASS |
+| `flood` · `flooding` · `high water` · `flood?` | **refuse** | PX-FLOOD |
+| `collision` · `crash` · `accident` · `dent` · `bumper` · `impact` | **hold for photos** | PX-COLLISION |
+| `collision` + `with photo` / `photos on` / `have photo` | **open** | PX-COLLISION |
+| `collision` + `missing` / `no photo` / `need photo` | **hold for photos** | PX-COLLISION |
+| `PX-GLASS` · `PX-FLOOD` · `PX-COLLISION` | same as that rule | that id |
+
+### Always refused
+
+| Type this | Desk | Quoted |
+|-----------|------|--------|
+| `will we pay?` · `payout` · `settlement` · `how much` · `payment` · `pay` · `$500` · `dollars` · `usd` | **refuse** | PX-NO-PAY — “The desk does not state a payout.” |
+| `prescribe` · `dose` · `medicine` · `liable` · `attorney` · `lawyer` | **refuse** | No rule line matched. Medical/legal refusal. |
+
+### No line in the file
+
+| Type this | Desk |
+|-----------|------|
+| `flat tire?` · `weather` · `hail` · anything else | **no match** — `No rule line matched.` |
+
+The desk will not invent a flat-tire rule. Only those four excerpt lines exist.
+
 ## Quickstart
 
 Run → test → MCP → desk.sh → Bot.

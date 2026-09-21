@@ -12,7 +12,9 @@ from pathlib import Path
 from python import decide
 from python.serve_desk import (
     ask_payload,
+    attach_photos,
     confirm,
+    delete_photos,
     ensure_state,
     health_payload,
     load_log,
@@ -21,6 +23,12 @@ from python.serve_desk import (
     state_path,
     undo,
     utccompact,
+)
+
+# 1×1 PNG
+TINY_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082"
 )
 
 CLAIM_NUMBER = re.compile(r"^FNOL-CL-03-\d{8}T\d{6}Z$")
@@ -34,7 +42,9 @@ class DeskApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self._prev = os.environ.get("CLAIMDESK_VAR")
+        self._label = os.environ.get("CLAIMDESK_PHOTO_LABEL")
         os.environ["CLAIMDESK_VAR"] = self._tmp.name
+        os.environ["CLAIMDESK_PHOTO_LABEL"] = "collision"
         self.var = Path(self._tmp.name)
 
     def tearDown(self) -> None:
@@ -42,6 +52,10 @@ class DeskApiTests(unittest.TestCase):
             os.environ.pop("CLAIMDESK_VAR", None)
         else:
             os.environ["CLAIMDESK_VAR"] = self._prev
+        if self._label is None:
+            os.environ.pop("CLAIMDESK_PHOTO_LABEL", None)
+        else:
+            os.environ["CLAIMDESK_PHOTO_LABEL"] = self._label
         self._tmp.cleanup()
 
     def _by_id(self) -> dict[str, dict]:
@@ -104,13 +118,25 @@ class DeskApiTests(unittest.TestCase):
         self.assertEqual(result["quoted"], "No rule line matched.")
         self.assertIn("medical or legal", result["detail"])
 
-    def test_ask_other_is_off_desk(self) -> None:
-        result = ask_payload("what is the weather")
-        self.assertEqual(result["label"], "Off-desk")
-        self.assertEqual(result["decision"], "Off-desk")
+    def test_ask_unknown_peril_is_no_match(self) -> None:
+        result = ask_payload("flat tire?")
+        self.assertEqual(result["label"], "no match")
+        self.assertEqual(result["decision"], "refuse")
         self.assertIsNone(result["rule_id"])
         self.assertEqual(result["quoted"], "No rule line matched.")
-        self.assertIn("claim intake", result["detail"].lower())
+        self.assertEqual(result["detail"], "No rule line matched.")
+
+    def test_ask_flood_cites_policy(self) -> None:
+        result = ask_payload("flood?")
+        self.assertEqual(result["decision"], "refuse")
+        self.assertEqual(result["rule_id"], "PX-FLOOD")
+        self.assertTrue(result["quoted"].startswith("PX-FLOOD."))
+
+    def test_ask_glass_cites_policy(self) -> None:
+        result = ask_payload("is glass covered")
+        self.assertEqual(result["decision"], "open")
+        self.assertEqual(result["rule_id"], "PX-GLASS")
+        self.assertTrue(result["quoted"].startswith("PX-GLASS."))
 
     def test_cl03_confirm_then_undo(self) -> None:
         status, payload = confirm("CL-03")
@@ -186,6 +212,125 @@ class DeskApiTests(unittest.TestCase):
     def test_utccompact_format(self) -> None:
         stamp = utccompact()
         self.assertRegex(stamp, r"^\d{8}T\d{6}Z$")
+
+    def test_cl08_upload_photos_opens_then_confirm(self) -> None:
+        by_id = self._by_id()
+        self.assertEqual(by_id["CL-08"]["decision"], "hold")
+        self.assertTrue(by_id["CL-08"]["can_upload"])
+        kit = json.loads(
+            (Path(__file__).resolve().parent.parent / "data" / "fnol.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertFalse(next(row["photos"] for row in kit if row["id"] == "CL-08"))
+
+        status, payload = attach_photos("CL-08", "dent.png", TINY_PNG)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["photos"])
+        self.assertEqual(payload["decision"], "open")
+        self.assertEqual(payload["rule_id"], "PX-COLLISION")
+        self.assertEqual(payload["send_state"], "draft")
+        self.assertTrue(payload["can_confirm"])
+        self.assertTrue(payload["can_upload"])
+        self.assertTrue(payload["photo_url"].endswith("/api/photo/CL-08"))
+
+        kit_after = json.loads(
+            (Path(__file__).resolve().parent.parent / "data" / "fnol.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertFalse(next(row["photos"] for row in kit_after if row["id"] == "CL-08"))
+
+        status, confirmed = confirm("CL-08")
+        self.assertEqual(status, 200)
+        self.assertEqual(confirmed["send_state"], "sent")
+        self.assertRegex(confirmed["claim_number"], r"^FNOL-CL-08-\d{8}T\d{6}Z$")
+
+    def test_cl08_delete_photos_returns_to_hold(self) -> None:
+        attach_photos("CL-08", "dent.png", TINY_PNG)
+        confirm("CL-08")
+        status, payload = delete_photos("CL-08")
+        self.assertEqual(status, 200)
+        self.assertFalse(payload["photos"])
+        self.assertEqual(payload["decision"], "hold")
+        self.assertEqual(payload["send_state"], "draft")
+        self.assertIsNone(payload.get("claim_number"))
+        self.assertTrue(payload["can_upload"])
+        self.assertFalse(payload["can_delete"])
+        self.assertNotIn("photo_url", payload)
+        kit = json.loads(
+            (Path(__file__).resolve().parent.parent / "data" / "fnol.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertFalse(next(row["photos"] for row in kit if row["id"] == "CL-08"))
+        events = [row for row in load_log() if row.get("event") == "photos-removed"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["id"], "CL-08")
+        self.assertEqual(events[0]["decision"], "hold")
+        queued = self._by_id()["CL-08"]
+        self.assertEqual(queued["decision"], "hold")
+        self.assertEqual(queued["label"], "hold for photos")
+        self.assertFalse(queued["photos"])
+        self.assertEqual(queued["send_state"], "draft")
+
+    def test_delete_photos_without_upload_is_400(self) -> None:
+        status, payload = delete_photos("CL-08")
+        self.assertEqual(status, 400)
+        self.assertEqual(payload, {"error": "no uploaded photo"})
+        self.assertEqual(self._by_id()["CL-08"]["decision"], "hold")
+
+    def test_upload_rejects_non_matching_context(self) -> None:
+        os.environ["CLAIMDESK_PHOTO_LABEL"] = "other"
+        status, payload = attach_photos("CL-08", "cat.png", TINY_PNG)
+        self.assertEqual(status, 400)
+        self.assertEqual(payload, {"error": "do not match context!"})
+        after = self._by_id()["CL-08"]
+        self.assertEqual(after["decision"], "hold")
+        self.assertFalse(after["photos"])
+        self.assertFalse(after.get("can_delete"))
+        if state_path().exists():
+            saved = json.loads(state_path().read_text(encoding="utf-8"))
+            self.assertNotIn("photos", saved.get("CL-08", {}))
+            self.assertNotIn("photo_name", saved.get("CL-08", {}))
+
+    def test_upload_flood_photo_on_collision_is_rejected(self) -> None:
+        os.environ["CLAIMDESK_PHOTO_LABEL"] = "flood"
+        status, payload = attach_photos("CL-08", "water.png", TINY_PNG)
+        self.assertEqual(status, 400)
+        self.assertEqual(payload, {"error": "do not match context!"})
+        self.assertEqual(self._by_id()["CL-08"]["decision"], "hold")
+
+    def test_cl03_glass_photo_stays_open(self) -> None:
+        os.environ["CLAIMDESK_PHOTO_LABEL"] = "glass"
+        self.assertTrue(self._by_id()["CL-03"]["can_upload"])
+        status, payload = attach_photos("CL-03", "window.png", TINY_PNG)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["photos"])
+        self.assertEqual(payload["decision"], "open")
+        self.assertEqual(payload["rule_id"], "PX-GLASS")
+        self.assertTrue(payload["can_delete"])
+
+    def test_cl04_flood_photo_stays_refuse(self) -> None:
+        os.environ["CLAIMDESK_PHOTO_LABEL"] = "flood"
+        self.assertTrue(self._by_id()["CL-04"]["can_upload"])
+        status, payload = attach_photos("CL-04", "water.png", TINY_PNG)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["photos"])
+        self.assertEqual(payload["decision"], "refuse")
+        self.assertEqual(payload["rule_id"], "PX-FLOOD")
+        self.assertFalse(payload["can_confirm"])
+
+    def test_queue_allows_upload_on_every_report(self) -> None:
+        by_id = self._by_id()
+        for report_id in ("CL-03", "CL-04", "CL-08"):
+            self.assertTrue(by_id[report_id]["can_upload"], report_id)
+
+    def test_upload_rejects_non_image(self) -> None:
+        status, payload = attach_photos("CL-08", "note.txt", b"not an image")
+        self.assertEqual(status, 400)
+        self.assertEqual(payload, {"error": "not an image"})
+        self.assertEqual(self._by_id()["CL-08"]["decision"], "hold")
 
     def test_health_points_at_kit(self) -> None:
         payload = health_payload()

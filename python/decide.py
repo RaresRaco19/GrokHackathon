@@ -113,8 +113,20 @@ def record(
     return out
 
 
+RULE_HINTS = {
+    "PX-GLASS": ("glass", "windshield", "window pane", "shattered", "broken window"),
+    "PX-FLOOD": ("flood", "flooding", "inundat", "high water"),
+    "PX-COLLISION": ("collision", "crash", "accident", "dent", "bumper", "impact"),
+}
+
+
 def refuse_off_scope(text: str, policy: dict[str, str]) -> dict:
-    lowered = text.lower()
+    return ask_against_rules(text, policy)
+
+
+def ask_against_rules(text: str, policy: dict[str, str]) -> dict:
+    """Score a free-text ask against policy-excerpt.md only. Invent nothing."""
+    lowered = (text or "").lower()
     if any(re.search(pattern, lowered) for pattern in PAYOUT_PATTERNS):
         return record(
             decision="refuse",
@@ -129,6 +141,31 @@ def refuse_off_scope(text: str, policy: dict[str, str]) -> dict:
             quoted=NO_MATCH,
             message=MEDICAL_LEGAL_REFUSAL,
         )
+    hits = [
+        rule_id
+        for rule_id, hints in RULE_HINTS.items()
+        if rule_id in policy
+        and (
+            rule_id.lower() in lowered
+            or any(hint in lowered for hint in hints)
+        )
+    ]
+    if len(hits) == 1:
+        rule_id = hits[0]
+        quoted = quote_line(policy, rule_id)
+        if rule_id == "PX-FLOOD":
+            return record(decision="refuse", rule_id=rule_id, quoted=quoted)
+        if rule_id == "PX-GLASS":
+            return record(decision="open", rule_id=rule_id, quoted=quoted)
+        missing = any(
+            token in lowered for token in ("missing", "no photo", "without photo", "need photo")
+        )
+        on_file = any(
+            token in lowered for token in ("photos on", "photo on", "have photo", "with photo")
+        )
+        if on_file and not missing:
+            return record(decision="open", rule_id=rule_id, quoted=quoted)
+        return record(decision="hold", rule_id=rule_id, quoted=quoted)
     return record(decision="refuse", rule_id=None, quoted=NO_MATCH)
 
 
@@ -152,11 +189,12 @@ def decide_report(report: dict, policy: dict[str, str]) -> dict:
             quoted=quote_line(policy, cover),
             report=report,
         )
-    if cover == "PX-GLASS" and report["photos"] is True:
+    # Photos on file: glass and collision may be accepted for intake.
+    if cover in ("PX-GLASS", "PX-COLLISION"):
         return record(
             decision="open",
-            rule_id="PX-GLASS",
-            quoted=quote_line(policy, "PX-GLASS"),
+            rule_id=cover,
+            quoted=quote_line(policy, cover),
             report=report,
         )
     return record(decision="refuse", rule_id=None, quoted=NO_MATCH, report=report)
@@ -207,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     results: list[dict]
 
     if args.advice:
-        results = [refuse_off_scope(args.advice, policy)]
+        results = [ask_against_rules(args.advice, policy)]
     elif args.report_id:
         reports = load_reports()
         match = next((row for row in reports if row["id"] == args.report_id), None)

@@ -204,6 +204,60 @@ aside.inbound {
 @media (min-width: 1024px) {
   .lower { grid-template-columns: 1.2fr 0.8fr; }
 }
+#photo-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 10rem;
+  margin-top: 0.65rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--card-line);
+  object-fit: contain;
+  background: #fff;
+}
+#photo-preview[hidden] { display: none; }
+#photo-delete {
+  margin-top: 0.65rem;
+  min-height: 2.2rem;
+  border-radius: 0.4rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--header);
+  font-weight: 600;
+  cursor: pointer;
+}
+#photo-delete[hidden] { display: none; }
+#photo-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+#photo-form[hidden] { display: none; }
+#photo-form .file {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0 0.7rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--aside);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+#photo-form .file input { display: none; }
+#photo-form button {
+  min-height: 2.2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0 0.75rem;
+  background: var(--amber);
+  color: var(--header);
+  font-weight: 600;
+  cursor: pointer;
+}
+#photo-hint { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--muted); }
+#photo-hint[hidden] { display: none; }
 .quote-card .note { margin: 0.75rem 0 0; font-size: 15px; line-height: 1.6; }
 .send { margin: 0.85rem 0 0; color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
@@ -280,3 +334,37 @@ aside.inbound {
   border-top: 1px solid var(--card-line);
 }
 .log li:first-child { border-top: 0; }
+
+.popup {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 22, 40, 0.55);
+}
+.popup[hidden] { display: none; }
+.popup-card {
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 1.25rem 1.35rem 1.1rem;
+  border-radius: 0.7rem;
+  background: #fbf8f2;
+  color: #1a1814;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+.popup-card p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.popup-card button {
+  margin-top: 1rem;
+  min-height: 2.4rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: #d08a1a;
+  color: #152238;
+  font-weight: 700;
+  cursor: pointer;
+}

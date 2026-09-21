@@ -49,7 +49,24 @@ A clerk opens CL-08 (collision, photos false, cover PX-COLLISION). The desk retu
 **Acceptance Scenarios**:
 
 1. **Given** CL-08 with photos false, **When** the clerk asks the desk to decide, **Then** the decision is hold and PX-COLLISION is quoted.
-2. **Given** a collision report with photos true (not in the kit), **When** the desk decides, **Then** it still does not return open.
+2. **Given** a matching collision photo is attached, **When** the desk decides again, **Then** the decision is open and PX-COLLISION is quoted.
+
+---
+
+### User Story 3b - Clerk attaches a photo on any report (Priority: P1)
+
+Every inbound report (CL-03 glass, CL-04 flood, CL-08 collision) can receive a photo. The desk classifies the image. The photo is valid only when it matches that report's peril (glass, flood, or collision). A mismatch does not change state and the clerk sees "do not match context!"
+
+**Why this priority**: Evidence must match the claim. Flood photos never override PX-FLOOD.
+
+**Independent Test**: Upload a matching photo on each of CL-03 / CL-04 / CL-08. Then upload a mismatch on CL-08.
+
+**Acceptance Scenarios**:
+
+1. **Given** CL-03, **When** a glass photo is attached, **Then** the decision stays open and PX-GLASS is quoted.
+2. **Given** CL-04, **When** a flood photo is attached, **Then** the decision stays refuse and PX-FLOOD is quoted. Confirm is still blocked.
+3. **Given** CL-08, **When** a collision photo is attached, **Then** the decision becomes open and PX-COLLISION is quoted.
+4. **Given** any of those reports, **When** the photo is not glass/flood/collision or does not match the peril, **Then** state is unchanged and the popup says "do not match context!"
 
 ---
 

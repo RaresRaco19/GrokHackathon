@@ -20,6 +20,7 @@ When a clerk opens a report or asks the desk:
    - CL-03 glass, photos true → open, cite PX-GLASS
    - CL-04 flood, photos true → refuse, cite PX-FLOOD
    - CL-08 collision, photos false → hold, cite PX-COLLISION
+   - A matching photo may be attached on any of those three. Collision + matching photo → open. Flood stays refuse. A mismatch does not change the case (`do not match context!`).
 4. Quote the matching line from the rule file, including the rule id.
 
 ## Payout and off-scope

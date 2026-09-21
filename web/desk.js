@@ -20,6 +20,14 @@ function shown(c) {
   return (c && (c.label || c.decision)) || "";
 }
 
+function formatLogTime(ts) {
+  const compact = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(ts || "");
+  if (compact) {
+    return `${compact[1]}-${compact[2]}-${compact[3]} ${compact[4]}:${compact[5]}:${compact[6]}`;
+  }
+  return ts || "";
+}
+
 function renderQueue() {
   const ul = document.getElementById("queue");
   ul.innerHTML = state.cases
@@ -70,6 +78,22 @@ function renderDetail() {
   document.getElementById("decision-rule").textContent = c.rule_id || "";
   document.getElementById("peril").textContent = c.peril || "";
   document.getElementById("photos").textContent = c.photos ? "on file" : "missing";
+  const preview = document.getElementById("photo-preview");
+  if (c.photo_url) {
+    preview.hidden = false;
+    preview.src = c.photo_url + "?t=" + Date.now();
+  } else {
+    preview.hidden = true;
+    preview.removeAttribute("src");
+  }
+  const form = document.getElementById("photo-form");
+  const hint = document.getElementById("photo-hint");
+  const delBtn = document.getElementById("photo-delete");
+  form.hidden = !c.can_upload;
+  hint.hidden = !c.can_upload;
+  const peril = (c.peril || "").toLowerCase();
+  hint.textContent = `Photo must show ${peril || "glass, flood, or collision"}. A mismatch does not change the case.`;
+  delBtn.hidden = !c.can_delete;
   document.getElementById("cover").textContent = c.cover || "";
   document.getElementById("quote-body").textContent = c.quoted || "";
   const sendBits = [c.send_state];
@@ -115,7 +139,7 @@ function renderDetail() {
     .slice()
     .reverse()
     .map((row) => {
-      const bits = [row.ts, row.id, row.event || row.decision, row.claim_number].filter(Boolean);
+      const bits = [formatLogTime(row.ts), row.id, row.event || row.decision, row.claim_number].filter(Boolean);
       return `<li>${bits.join(" · ")}</li>`;
     })
     .join("");
@@ -145,6 +169,15 @@ async function loadLog() {
   renderDetail();
 }
 
+function showPopup(message) {
+  document.getElementById("popup-text").textContent = message;
+  document.getElementById("popup").hidden = false;
+}
+
+document.getElementById("popup-ok").addEventListener("click", () => {
+  document.getElementById("popup").hidden = true;
+});
+
 async function postAction(path) {
   const c = current();
   if (!c) return;
@@ -154,7 +187,20 @@ async function postAction(path) {
     body: JSON.stringify({ id: c.id }),
   });
   const data = await res.json();
-  state.notice = res.ok ? null : data.error || "request failed";
+  if (!res.ok) {
+    state.notice = data.error || "request failed";
+    renderDetail();
+    return;
+  }
+  if (data && data.id) {
+    state.cases = state.cases.map((row) => (row.id === data.id ? { ...row, ...data } : row));
+  }
+  if (path === "/api/photos/delete") {
+    state.notice = `Photo removed. ${data.id} is now ${data.label || data.decision}.`;
+  } else {
+    state.notice = null;
+  }
+  render();
   await loadQueue();
   await loadLog();
 }
@@ -164,6 +210,37 @@ document.getElementById("confirm-btn").addEventListener("click", () => {
 });
 document.getElementById("undo-btn").addEventListener("click", () => {
   postAction("/api/undo");
+});
+
+document.getElementById("photo-delete").addEventListener("click", () => {
+  postAction("/api/photos/delete");
+});
+
+document.getElementById("photo-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const c = current();
+  const file = document.getElementById("photo-input").files[0];
+  if (!c || !file) {
+    state.notice = "Choose an image first.";
+    renderDetail();
+    return;
+  }
+  const body = new FormData();
+  body.append("id", c.id);
+  body.append("photo", file, file.name);
+  const res = await fetch("/api/photos", { method: "POST", body });
+  const data = await res.json();
+  document.getElementById("photo-input").value = "";
+  if (!res.ok) {
+    const msg = data.error || "upload failed";
+    state.notice = msg;
+    showPopup(msg);
+    renderDetail();
+    return;
+  }
+  state.notice = `${c.id} photos on file. Decision is now ${data.label || data.decision}. Confirm to send.`;
+  await loadQueue();
+  await loadLog();
 });
 
 document.getElementById("ask-form").addEventListener("submit", async (event) => {

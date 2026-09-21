@@ -4,3 +4,4 @@ __pycache__/
 *$py.class
 var/*.jsonl
 var/desk_state.json
+var/photos/

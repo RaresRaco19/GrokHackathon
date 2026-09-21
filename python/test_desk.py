@@ -142,10 +142,12 @@ class DeskGoldenTests(unittest.TestCase):
         glass = load_json("CL-03")
         self.assertIn("payout", glass["quoted"].lower())
 
-    def test_no_open_collision_path(self) -> None:
-        for row in load_json():
-            if row.get("cover") == "PX-COLLISION":
-                self.assertNotEqual(row["decision"], "open")
+    def test_kit_collision_without_photos_does_not_open(self) -> None:
+        row = load_json("CL-08")
+        self.assertEqual(row["decision"], "hold")
+        self.assertFalse(row["photos"])
+
+    def test_collision_with_photos_opens(self) -> None:
         policy = decide.load_policy()
         synthetic = decide.decide_report(
             {
@@ -156,9 +158,10 @@ class DeskGoldenTests(unittest.TestCase):
             },
             policy,
         )
-        self.assertNotEqual(synthetic["decision"], "open")
-        self.assertEqual(synthetic["decision"], "refuse")
-        self.assertIsNone(synthetic["rule_id"])
+        self.assertEqual(synthetic["decision"], "open")
+        self.assertEqual(synthetic["rule_id"], "PX-COLLISION")
+        self.assertTrue(synthetic["quoted"].startswith("PX-COLLISION."))
+        self.assertIn(synthetic["quoted"], POLICY)
 
     def test_medical_legal_is_refused_without_rule_id(self) -> None:
         row = load_json("--advice", "what dose of medicine am I liable for")
@@ -167,13 +170,19 @@ class DeskGoldenTests(unittest.TestCase):
         self.assertEqual(row["quoted"], "No rule line matched.")
         self.assertIn("medical or legal", row["message"])
 
-    def test_off_desk_ask_is_no_match_without_medical_copy(self) -> None:
-        row = load_json("--advice", "is glass covered")
+    def test_ask_unknown_is_no_match_from_rules(self) -> None:
+        row = load_json("--advice", "flat tire?")
         self.assertEqual(row["decision"], "refuse")
         self.assertIsNone(row["rule_id"])
         self.assertEqual(row["quoted"], "No rule line matched.")
         self.assertNotIn("message", row)
-        self.assertNotEqual(row.get("rule_id"), "PX-NO-PAY")
+
+    def test_ask_glass_cites_px_glass(self) -> None:
+        row = load_json("--advice", "is glass covered")
+        self.assertEqual(row["decision"], "open")
+        self.assertEqual(row["rule_id"], "PX-GLASS")
+        self.assertTrue(row["quoted"].startswith("PX-GLASS."))
+        self.assertIn(row["quoted"], POLICY)
 
     def test_unknown_id_exits_1(self) -> None:
         completed = run_decide("CL-99", check=False)

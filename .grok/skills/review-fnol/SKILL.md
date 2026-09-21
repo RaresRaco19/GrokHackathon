@@ -29,8 +29,10 @@ Decide intake: open, hold, or refuse. Never a payout. Do not invent rules.
    - Cover is PX-FLOOD → **refuse**, PX-FLOOD (photos true does not override)
    - Photos false → **hold** (display "hold for photos"), cite the cover id (CL-08 / PX-COLLISION)
    - Cover is PX-GLASS and photos true → **open**, PX-GLASS
+   - Cover is PX-COLLISION and photos true → **open**, PX-COLLISION
    - No matching line → say `No rule line matched`. Do not mint a rule id.
-6. Answer with: decision, rule id, quoted line. Do not add claimant names, vehicles, or payout amounts.
+6. Photos may be attached on CL-03, CL-04, and CL-08. The picture must match that report's peril (glass, flood, or collision). If it does not, do not change the case; say `do not match context!`
+7. Answer with: decision, rule id, quoted line. Do not add claimant names, vehicles, or payout amounts.
 
 ## Checks
 
